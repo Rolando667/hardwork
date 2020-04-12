@@ -2,3 +2,4 @@ git init
 git status
 git commit -m ""
 git add .
+git push
