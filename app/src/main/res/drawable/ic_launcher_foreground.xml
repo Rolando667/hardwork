@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Стилізоване яблуко — «здоровий» символ. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,38c-3,-4 -8,-6 -13,-6c-9,0 -16,8 -16,19c0,13 9,27 18,27c3,0 5,-1 7,-2c2,-1 4,-1 6,0c2,1 4,2 7,2c9,0 18,-14 18,-27c0,-11 -7,-19 -16,-19c-5,0 -10,2 -13,6z" />
+    <path
+        android:fillColor="#A8D5A2"
+        android:pathData="M54,38c0,-6 2,-11 7,-14c3,-2 7,-2 7,-2c0,5 -2,10 -6,13c-3,2 -8,3 -8,3z" />
+</vector>

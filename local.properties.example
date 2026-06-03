@@ -1,0 +1,9 @@
+# Скопіюйте цей файл у local.properties і заповніть значення.
+# local.properties НЕ комітиться в git (див. .gitignore).
+
+# Шлях до Android SDK
+sdk.dir=/path/to/Android/sdk
+
+# Ключ Anthropic API (https://console.anthropic.com/).
+# Потрапляє у BuildConfig.ANTHROPIC_API_KEY під час збірки.
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxx

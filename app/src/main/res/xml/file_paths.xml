@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Тимчасові фото для AI-аналізу зберігаються в кеші додатка. -->
+    <cache-path
+        name="camera_images"
+        path="images/" />
+    <external-cache-path
+        name="external_camera_images"
+        path="images/" />
+</paths>

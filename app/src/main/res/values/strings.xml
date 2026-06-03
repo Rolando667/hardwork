@@ -1,0 +1,98 @@
+<resources>
+    <string name="app_name">Калорії AI</string>
+
+    <!-- Нижня навігація -->
+    <string name="nav_diary">Щоденник</string>
+    <string name="nav_add">Додати</string>
+    <string name="nav_profile">Профіль</string>
+
+    <!-- Щоденник -->
+    <string name="diary_title">Щоденник харчування</string>
+    <string name="diary_eaten_of">З\'їдено %1$d з %2$d ккал</string>
+    <string name="diary_remaining">Залишок: %1$d ккал</string>
+    <string name="diary_over">Перевищено на %1$d ккал</string>
+    <string name="diary_empty_title">Поки що порожньо</string>
+    <string name="diary_empty_subtitle">Додайте першу страву через вкладку «Додати»</string>
+    <string name="diary_protein">Білки</string>
+    <string name="diary_fat">Жири</string>
+    <string name="diary_carbs">Вуглеводи</string>
+    <string name="diary_kcal">ккал</string>
+    <string name="diary_grams_short">г</string>
+    <string name="diary_today">Сьогодні</string>
+    <string name="diary_yesterday">Вчора</string>
+    <string name="diary_prev_day">Попередній день</string>
+    <string name="diary_next_day">Наступний день</string>
+    <string name="diary_set_profile_hint">Заповніть профіль, щоб побачити денну норму калорій</string>
+
+    <!-- Запис їжі -->
+    <string name="entry_edit">Редагувати</string>
+    <string name="entry_delete">Видалити</string>
+    <string name="entry_deleted">Запис видалено</string>
+    <string name="entry_undo">Скасувати</string>
+    <string name="entry_name">Назва</string>
+    <string name="entry_grams">Грамовка (г)</string>
+    <string name="entry_kcal_label">Калорії (ккал)</string>
+    <string name="entry_protein_label">Білки (г)</string>
+    <string name="entry_fat_label">Жири (г)</string>
+    <string name="entry_carbs_label">Вуглеводи (г)</string>
+    <string name="entry_save">Зберегти</string>
+    <string name="entry_cancel">Скасувати</string>
+
+    <!-- Додавання -->
+    <string name="add_title">Додати їжу</string>
+    <string name="add_tab_text">Текст</string>
+    <string name="add_tab_photo">Фото</string>
+    <string name="add_text_hint">Напишіть продукти й грамовки, кожен з нового рядка:\nкуряча грудка 150 г\nрис відварений 200 г</string>
+    <string name="add_analyze">Аналізувати</string>
+    <string name="add_analyzing">AI аналізує…</string>
+    <string name="add_take_photo">Зробити фото</string>
+    <string name="add_pick_gallery">Обрати з галереї</string>
+    <string name="add_retake">Інше фото</string>
+    <string name="add_results_title">Результат аналізу</string>
+    <string name="add_save_all">Додати в щоденник</string>
+    <string name="add_saved">Додано в щоденник</string>
+    <string name="add_clear">Очистити</string>
+    <string name="add_total">Разом: %1$d ккал</string>
+    <string name="add_empty_text_error">Спочатку введіть продукти</string>
+    <string name="add_photo_placeholder">Зробіть фото страви або оберіть із галереї — AI розпізнає її та оцінить калорійність</string>
+
+    <!-- Профіль -->
+    <string name="profile_title">Профіль</string>
+    <string name="profile_age">Вік</string>
+    <string name="profile_sex">Стать</string>
+    <string name="profile_sex_male">Чоловіча</string>
+    <string name="profile_sex_female">Жіноча</string>
+    <string name="profile_height">Зріст (см)</string>
+    <string name="profile_weight">Вага (кг)</string>
+    <string name="profile_activity">Рівень активності</string>
+    <string name="profile_activity_sedentary">Сидячий</string>
+    <string name="profile_activity_light">Легка активність</string>
+    <string name="profile_activity_moderate">Помірна активність</string>
+    <string name="profile_activity_high">Висока активність</string>
+    <string name="profile_activity_very_high">Дуже висока активність</string>
+    <string name="profile_goal">Ціль</string>
+    <string name="profile_goal_maintain">Підтримка ваги</string>
+    <string name="profile_goal_lose">Схуднення</string>
+    <string name="profile_goal_gain">Набір маси</string>
+    <string name="profile_bmr">BMR (базовий метаболізм)</string>
+    <string name="profile_tdee">TDEE (добова витрата)</string>
+    <string name="profile_target">Денна норма</string>
+    <string name="profile_kcal_per_day">%1$d ккал/день</string>
+    <string name="profile_save">Зберегти профіль</string>
+    <string name="profile_saved">Профіль збережено</string>
+    <string name="profile_theme">Тема</string>
+    <string name="profile_theme_system">Системна</string>
+    <string name="profile_theme_light">Світла</string>
+    <string name="profile_theme_dark">Темна</string>
+    <string name="profile_dynamic_color">Динамічні кольори (Material You)</string>
+    <string name="profile_invalid">Заповніть усі поля коректними значеннями</string>
+
+    <!-- Помилки / стани -->
+    <string name="error_network">Помилка мережі. Перевірте з\'єднання.</string>
+    <string name="error_no_api_key">Не вказано ключ Anthropic API (local.properties)</string>
+    <string name="error_ai_parse">Не вдалося розпізнати відповідь AI. Спробуйте ще раз.</string>
+    <string name="error_ai_empty">AI не знайшла страв. Спробуйте уточнити запит.</string>
+    <string name="error_unknown">Сталася помилка. Спробуйте ще раз.</string>
+    <string name="permission_camera_denied">Потрібен дозвіл на камеру, щоб зробити фото</string>
+    <string name="retry">Повторити</string>
+</resources>

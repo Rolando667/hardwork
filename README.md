@@ -1,0 +1,69 @@
+# Калорії AI — Android-додаток для підрахунку калорій
+
+Сучасний Android-додаток (Kotlin + Jetpack Compose, Material 3) для підрахунку
+калорій з AI-аналізом їжі за **текстом** та **фото** через Anthropic API.
+
+> Інтерфейс повністю українською.
+
+## Можливості
+
+- **Профіль**: вік, стать, зріст, вага, рівень активності; розрахунок **BMR**
+  (Mifflin-St Jeor) і **TDEE**; три цілі — підтримка / схуднення (−500) / набір (+500).
+- **Щоденник**: записи за датою (назва, грамовка, ккал, Б/Ж/В), додавання,
+  редагування, видалення; перемикач дат; анімована **кругова діаграма** прогресу
+  калорій і смужки Б/Ж/В.
+- **Додавання їжі двома способами**:
+  - **Текстом** — список продуктів і грамовок;
+  - **Фото** — камера (системний інтент + FileProvider) або галерея (Photo Picker);
+    зображення надсилається до AI як base64.
+- **AI-аналіз** через Anthropic Messages API (`claude-sonnet-4-20250514`):
+  системний промт нутриціолога, відповідь у строгому JSON, парсинг через Moshi
+  з обробкою «брудного» JSON та автоповтором.
+- **Дизайн/UX**: Material 3 + динамічна тема (Material You) + ручний вибір
+  світла/темна; скруглені картки, анімації, shimmer-завантаження, порожні стани,
+  snackbar для помилок; нижня навігація (Щоденник / Додати / Профіль).
+
+## Архітектура
+
+MVVM + Repository + Hilt DI, односпрямований потік (`StateFlow`).
+
+```
+domain/            моделі + NutritionCalculator (BMR/TDEE/цілі)
+data/local/        Room: entities, DAO, AppDatabase, Converters
+data/remote/       Retrofit Anthropic API, DTO, промти, JsonExtractor
+data/repository/   Profile / Diary / FoodAnalysis / Settings
+di/                Hilt-модулі (Database, Network)
+ui/diary|add|profile  екрани + ViewModel'и
+ui/components/     ProgressRing, MacroBars, FoodEntryCard, EmptyState, Shimmer…
+ui/theme/          Color, Type, Shape, Theme (Material You)
+util/              ImageUtils (base64), CameraFileProvider, DateUtils, Result
+```
+
+## Технології
+
+Kotlin 2.0 · Jetpack Compose (Material 3) · Hilt · Room (KSP) · Retrofit +
+OkHttp + Moshi · DataStore · Coil · CameraX-free (системний інтент + FileProvider).
+minSdk 26, compile/target SDK 35.
+
+## Налаштування
+
+1. Скопіюйте `local.properties.example` → `local.properties` і вкажіть:
+   ```properties
+   sdk.dir=/шлях/до/Android/sdk
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+   Ключ потрапляє у `BuildConfig.ANTHROPIC_API_KEY` під час збірки і **не
+   комітиться** в git.
+2. Збірка:
+   ```bash
+   ./gradlew assembleDebug          # debug APK
+   ./gradlew testDebugUnitTest      # юніт-тести (розрахунки + парсинг JSON)
+   ```
+
+Без `ANTHROPIC_API_KEY` додаток збирається й працює, але AI-функції повертають
+помилку (показується у snackbar).
+
+## Тести
+
+- `NutritionCalculatorTest` — BMR/TDEE/цілі та розподіл макросів.
+- `AnalysisParsingTest` — парсинг валідного та «брудного» JSON (markdown/проза).
