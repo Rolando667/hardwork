@@ -1,0 +1,72 @@
+# =============================================================================
+# Phase 1 (P0) scanner configuration.
+# Nothing is hardcoded in the source — every threshold lives here and is tunable.
+# All durations in the runtime block are documented inline. Times are UTC internally.
+# =============================================================================
+
+phase: p0                       # only "p0" is implemented; later phases reuse this file
+strategy: cross_exchange_spread # perp-perp price spread (the main strategy)
+
+# Exchanges to attempt. Any that fail to load (network block, downtime) are logged
+# and skipped — the scanner runs on whatever loads. In a restricted network,
+# Binance/Bybit may be unreachable; OKX/MEXC/Gate are commonly reachable.
+exchanges:
+  - binance
+  - bybit
+  - okx
+  - mexc
+  - gate
+
+# Market selection. P0 is linear (USDT-margined) swaps only. Inverse is excluded
+# (convexity mismatch — cannot be hedged 1:1 against linear).
+market:
+  type: swap
+  contract: linear
+  settle: USDT
+
+# Universe auto-discovery. The scanner forms its own coin list each loop:
+# intersection of coins listed on >= 2 exchanges, filtered by volume, top-N by volume.
+universe:
+  top_n: 20                     # monitor the N most-liquid eligible coins
+  min_quote_volume_24h: 1000000 # USDT; drop coins thinner than this on every venue
+  recalc_each_loop: true        # P0 rebuilds the universe each scan (periodic recalc is P1)
+
+# Signal threshold. A coin/pair is a signal when net_spread (after the full cost
+# stack) clears this. Break-even on liquid tier-1 coins is ~25-30 bps, so 35 is tight.
+thresholds:
+  entry_net_spread_bps: 35
+
+# Symmetric leg sizing. Both legs must be equal in COIN quantity (delta-neutral).
+sizing:
+  target_notional_quote: 100    # USDT notional per leg we try to size to
+  residual_tolerance_frac: 0.01 # max |leg1-leg2|/size allowed before flagging imbalance
+
+# Cost model — the single source of truth for profit/loss accounting.
+fees:
+  taker_only: true              # P0 crosses the book on all legs (taker on entry+exit)
+  # Slippage BEYOND top-of-book, applied PER crossing leg. With a full round-trip
+  # (4 taker legs) the total is 4x this. The half-spread (book crossing) is modeled
+  # separately, so this is only the extra from walking deeper. 2 bps/leg (~8 bps
+  # total) keeps break-even near the spec's stated ~25-30 bps on liquid coins;
+  # raise it to be more conservative, lower it once P1 computes slippage from L2 depth.
+  slippage_bps: 2
+  count_exit_crossing: true     # model the FULL round-trip (4 taker legs), not just entry
+  capital_cost_annual_bps: 1000 # opportunity cost of frozen capital, annualized (10%/yr)
+  expected_hold_hours: 8        # assumed holding time, used for capital + funding accrual
+  funding_horizon_hours: 8      # window over which net funding is accrued for the estimate
+  default_funding_interval_hours: 8  # fallback ONLY when an exchange's interval can't be read
+  # Per-exchange fee overrides for YOUR actual VIP tier / native-token discount /
+  # referral. CCXT does not know your tier. Values are fractions (0.0004 = 0.04%).
+  # Omit an exchange to fall back to market['maker']/market['taker'] from ccxt.
+  overrides:
+    binance: { maker: 0.0002,  taker: 0.0004 }
+    bybit:   { maker: 0.0002,  taker: 0.00055 }
+    okx:     { maker: 0.0002,  taker: 0.0005 }
+    mexc:    { maker: 0.0000,  taker: 0.0004 }
+    gate:    { maker: 0.0002,  taker: 0.0005 }
+
+runtime:
+  loop: true                    # repeat scans; false = single pass then exit
+  loop_interval_seconds: 30     # pause between scans
+  request_timeout_ms: 15000     # per-request ccxt timeout
+  log_level: INFO               # DEBUG | INFO | WARNING | ERROR

@@ -1,0 +1,5 @@
+# Phase 1 (P0) scanner dependencies — pinned.
+# Sync ccxt only for P0; no websocket/pandas/aiohttp yet (those arrive in P1+).
+ccxt==4.5.56
+PyYAML==6.0.3
+python-dotenv==1.2.2

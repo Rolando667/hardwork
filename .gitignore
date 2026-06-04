@@ -1,0 +1,24 @@
+# Secrets — never commit real keys
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# Runtime output (JSONL/CSV trade logs land here in P1+)
+logs/*.jsonl
+logs/*.csv
+logs/*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
