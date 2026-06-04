@@ -115,6 +115,11 @@
     <string name="stats_weight_empty">Внесіть свою вагу, щоб бачити графік динаміки</string>
     <string name="stats_weight_input">Вага сьогодні (кг)</string>
     <string name="stats_weight_save">Зберегти</string>
+    <string name="stats_advice_title">Порада від AI</string>
+    <string name="stats_advice_subtitle">AI проаналізує ваш раціон за період і дасть рекомендації</string>
+    <string name="stats_advice_button">Отримати пораду</string>
+    <string name="stats_advice_refresh">Оновити пораду</string>
+    <string name="stats_advice_loading">AI аналізує ваш раціон…</string>
 
     <!-- API-ключ -->
     <string name="profile_api_section">AI-аналіз (Anthropic)</string>

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -14,9 +15,11 @@ import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,6 +51,7 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val advice by viewModel.adviceState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.stats_title)) }) }
@@ -126,6 +130,85 @@ fun StatsScreen(
 
             // Динаміка ваги — показуємо завжди.
             WeightSection(state = state, onAddWeight = viewModel::addWeight)
+
+            // AI-поради по раціону.
+            AdviceSection(advice = advice, onGenerate = viewModel::generateAdvice)
+        }
+    }
+}
+
+@Composable
+private fun AdviceSection(
+    advice: AdviceState,
+    onGenerate: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.stats_advice_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+
+            when (val a = advice) {
+                AdviceState.Idle -> {
+                    Text(
+                        text = stringResource(R.string.stats_advice_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Button(onClick = onGenerate, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.stats_advice_button))
+                    }
+                }
+
+                AdviceState.Loading -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Text(
+                            text = stringResource(R.string.stats_advice_loading),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+
+                is AdviceState.Success -> {
+                    Text(
+                        text = a.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    OutlinedButton(onClick = onGenerate, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.stats_advice_refresh))
+                    }
+                }
+
+                is AdviceState.Error -> {
+                    val message = a.errorMessage ?: stringResource(a.errorRes)
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Button(onClick = onGenerate, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
+            }
         }
     }
 }
