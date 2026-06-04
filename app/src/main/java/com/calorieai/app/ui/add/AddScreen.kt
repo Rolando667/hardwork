@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,10 +57,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.calorieai.app.R
+import com.calorieai.app.domain.model.MealType
 import com.calorieai.app.ui.components.ShimmerLoading
+import com.calorieai.app.ui.components.mealTypeLabel
 import com.calorieai.app.util.CameraFileProvider
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddScreen(
     onSavedNavigateToDiary: () -> Unit,
@@ -138,6 +143,22 @@ fun AddScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Прийом їжі — автовибір за поточним часом, можна змінити.
+            Text(
+                text = stringResource(R.string.add_meal_type),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MealType.entries.forEach { type ->
+                    FilterChip(
+                        selected = state.mealType == type,
+                        onClick = { viewModel.selectMealType(type) },
+                        label = { Text(mealTypeLabel(type)) }
+                    )
+                }
+            }
+
             TabRow(selectedTabIndex = state.tab.ordinal) {
                 Tab(
                     selected = state.tab == AddTab.TEXT,

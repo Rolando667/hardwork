@@ -21,7 +21,7 @@ import com.calorieai.app.data.local.entity.WeightEntryEntity
         AiCacheEntity::class,
         WeightEntryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -42,6 +42,27 @@ abstract class AppDatabase : RoomDatabase() {
                         "`date` TEXT NOT NULL, `weightKg` REAL NOT NULL, " +
                         "PRIMARY KEY(`date`))"
                 )
+            }
+        }
+
+        /** Додає до записів прийом їжі, групу страви та час створення. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `food_entry` ADD COLUMN `mealType` TEXT NOT NULL " +
+                        "DEFAULT 'SNACK'"
+                )
+                db.execSQL(
+                    "ALTER TABLE `food_entry` ADD COLUMN `mealGroupId` TEXT NOT NULL " +
+                        "DEFAULT ''"
+                )
+                db.execSQL(
+                    "ALTER TABLE `food_entry` ADD COLUMN `createdAt` INTEGER NOT NULL " +
+                        "DEFAULT 0"
+                )
+                // Кожен наявний запис стає окремою «стравою» зі стабільним порядком.
+                db.execSQL("UPDATE `food_entry` SET `mealGroupId` = 'legacy_' || `id`")
+                db.execSQL("UPDATE `food_entry` SET `createdAt` = `id`")
             }
         }
     }

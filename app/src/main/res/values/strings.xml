@@ -39,6 +39,17 @@
     <string name="entry_save">Зберегти</string>
     <string name="entry_cancel">Скасувати</string>
 
+    <!-- Прийоми їжі -->
+    <string name="meal_breakfast">Сніданок</string>
+    <string name="meal_lunch">Обід</string>
+    <string name="meal_afternoon">Полуденок</string>
+    <string name="meal_dinner">Вечеря</string>
+    <string name="meal_snack">Перекус</string>
+    <string name="add_meal_type">Прийом їжі</string>
+    <string name="diary_filter_all">Усі</string>
+    <string name="diary_meal_components">%1$d компонент(и)</string>
+    <string name="diary_meal_tap_details">Натисніть, щоб побачити склад</string>
+
     <!-- Додавання -->
     <string name="add_title">Додати їжу</string>
     <string name="add_tab_text">Текст</string>

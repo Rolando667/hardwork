@@ -15,5 +15,10 @@ data class FoodEntry(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
-    val source: EntrySource = EntrySource.MANUAL
+    val source: EntrySource = EntrySource.MANUAL,
+    val mealType: MealType = MealType.SNACK,
+    // Компоненти однієї страви/прийому мають спільний groupId.
+    val mealGroupId: String = "",
+    // Момент додавання — для впорядкування від ранніх до пізніх.
+    val createdAt: Long = 0L
 )

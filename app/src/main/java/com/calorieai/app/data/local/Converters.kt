@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.calorieai.app.domain.model.ActivityLevel
 import com.calorieai.app.domain.model.EntrySource
 import com.calorieai.app.domain.model.Goal
+import com.calorieai.app.domain.model.MealType
 import com.calorieai.app.domain.model.Sex
 import java.time.LocalDate
 
@@ -38,4 +39,10 @@ class Converters {
 
     @TypeConverter
     fun toEntrySource(value: String): EntrySource = EntrySource.valueOf(value)
+
+    @TypeConverter
+    fun fromMealType(mealType: MealType): String = mealType.name
+
+    @TypeConverter
+    fun toMealType(value: String): MealType = MealType.valueOf(value)
 }

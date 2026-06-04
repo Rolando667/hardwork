@@ -8,6 +8,7 @@ import com.calorieai.app.data.repository.DiaryRepository
 import com.calorieai.app.data.repository.FoodAnalysisRepository
 import com.calorieai.app.domain.model.EntrySource
 import com.calorieai.app.domain.model.FoodItem
+import com.calorieai.app.domain.model.MealType
 import com.calorieai.app.util.OperationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
 enum class AddTab { TEXT, PHOTO }
@@ -28,6 +30,7 @@ data class AddUiState(
     val results: List<FoodItem> = emptyList(),
     val note: String? = null,
     val source: EntrySource = EntrySource.TEXT,
+    val mealType: MealType = MealType.SNACK,
     val errorRes: Int? = null,
     val errorMessage: String? = null,
     val savedEvent: Boolean = false
@@ -42,10 +45,14 @@ class AddViewModel @Inject constructor(
     private val diaryRepository: DiaryRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AddUiState())
+    private val _state = MutableStateFlow(AddUiState(mealType = defaultMealType()))
     val state: StateFlow<AddUiState> = _state.asStateFlow()
 
     fun selectTab(tab: AddTab) = _state.update { it.copy(tab = tab) }
+
+    fun selectMealType(mealType: MealType) = _state.update { it.copy(mealType = mealType) }
+
+    private fun defaultMealType(): MealType = MealType.defaultForHour(LocalTime.now().hour)
 
     fun onTextChange(value: String) = _state.update { it.copy(textInput = value) }
 
@@ -109,9 +116,14 @@ class AddViewModel @Inject constructor(
         val current = _state.value
         if (current.results.isEmpty()) return
         viewModelScope.launch {
-            diaryRepository.addItems(current.results, LocalDate.now(), current.source)
+            diaryRepository.addMeal(
+                items = current.results,
+                date = LocalDate.now(),
+                mealType = current.mealType,
+                source = current.source
+            )
             _state.update {
-                AddUiState(savedEvent = true)
+                AddUiState(savedEvent = true, mealType = defaultMealType())
             }
         }
     }

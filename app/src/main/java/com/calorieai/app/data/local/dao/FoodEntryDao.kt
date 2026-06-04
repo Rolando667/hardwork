@@ -12,8 +12,11 @@ import java.time.LocalDate
 
 @Dao
 interface FoodEntryDao {
-    @Query("SELECT * FROM food_entry WHERE date = :date ORDER BY id DESC")
+    @Query("SELECT * FROM food_entry WHERE date = :date ORDER BY createdAt ASC, id ASC")
     fun observeEntriesForDate(date: LocalDate): Flow<List<FoodEntryEntity>>
+
+    @Query("DELETE FROM food_entry WHERE mealGroupId = :groupId")
+    suspend fun deleteGroup(groupId: String)
 
     @Query("SELECT DISTINCT date FROM food_entry ORDER BY date DESC")
     fun observeDatesWithEntries(): Flow<List<LocalDate>>

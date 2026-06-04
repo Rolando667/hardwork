@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.calorieai.app.domain.model.EntrySource
 import com.calorieai.app.domain.model.FoodEntry
+import com.calorieai.app.domain.model.MealType
 import java.time.LocalDate
 
 @Entity(
@@ -20,7 +21,10 @@ data class FoodEntryEntity(
     val protein: Double,
     val fat: Double,
     val carbs: Double,
-    val source: EntrySource
+    val source: EntrySource,
+    val mealType: MealType = MealType.SNACK,
+    val mealGroupId: String = "",
+    val createdAt: Long = 0L
 ) {
     fun toDomain(): FoodEntry = FoodEntry(
         id = id,
@@ -31,7 +35,10 @@ data class FoodEntryEntity(
         protein = protein,
         fat = fat,
         carbs = carbs,
-        source = source
+        source = source,
+        mealType = mealType,
+        mealGroupId = mealGroupId,
+        createdAt = createdAt
     )
 
     companion object {
@@ -44,7 +51,10 @@ data class FoodEntryEntity(
             protein = entry.protein,
             fat = entry.fat,
             carbs = entry.carbs,
-            source = entry.source
+            source = entry.source,
+            mealType = entry.mealType,
+            mealGroupId = entry.mealGroupId,
+            createdAt = entry.createdAt
         )
     }
 }

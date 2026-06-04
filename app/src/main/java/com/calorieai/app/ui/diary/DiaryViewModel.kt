@@ -7,6 +7,7 @@ import com.calorieai.app.data.repository.ProfileRepository
 import com.calorieai.app.domain.NutritionCalculator
 import com.calorieai.app.domain.NutritionTargets
 import com.calorieai.app.domain.model.FoodEntry
+import com.calorieai.app.domain.model.MealType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,9 +21,25 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
+/** Страва/прийом їжі: кілька компонентів зі спільним groupId. */
+data class DiaryMeal(
+    val groupId: String,
+    val mealType: MealType,
+    val createdAt: Long,
+    val items: List<FoodEntry>
+) {
+    val totalKcal: Int get() = items.sumOf { it.kcal }
+    val totalProtein: Double get() = items.sumOf { it.protein }
+    val totalFat: Double get() = items.sumOf { it.fat }
+    val totalCarbs: Double get() = items.sumOf { it.carbs }
+    val totalGrams: Int get() = items.sumOf { it.grams }
+}
+
 data class DiaryUiState(
     val date: LocalDate = LocalDate.now(),
-    val entries: List<FoodEntry> = emptyList(),
+    val meals: List<DiaryMeal> = emptyList(),
+    val filter: MealType? = null,
+    val hasAnyEntries: Boolean = false,
     val targets: NutritionTargets? = null,
     val profileComplete: Boolean = false,
     val consumedKcal: Int = 0,
@@ -39,7 +56,8 @@ class DiaryViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val selectedDate = MutableStateFlow(LocalDate.now())
-    private var lastDeleted: FoodEntry? = null
+    private val filter = MutableStateFlow<MealType?>(null)
+    private var lastDeleted: List<FoodEntry> = emptyList()
 
     private val entriesFlow = selectedDate.flatMapLatest { date ->
         diaryRepository.observeEntriesForDate(date)
@@ -48,12 +66,32 @@ class DiaryViewModel @Inject constructor(
     val uiState: StateFlow<DiaryUiState> = combine(
         selectedDate,
         profileRepository.observeProfile(),
-        entriesFlow
-    ) { date, profile, entries ->
+        entriesFlow,
+        filter
+    ) { date, profile, entries, activeFilter ->
         val targets = profile?.takeIf { it.isComplete }?.let { NutritionCalculator.targets(it) }
+
+        // Групуємо записи у страви; впорядковуємо від ранніх до пізніх.
+        val allMeals = entries
+            .groupBy { it.mealGroupId.ifEmpty { "single_${it.id}" } }
+            .map { (groupId, items) ->
+                DiaryMeal(
+                    groupId = groupId,
+                    mealType = items.first().mealType,
+                    createdAt = items.minOf { it.createdAt },
+                    items = items
+                )
+            }
+            .sortedBy { it.createdAt }
+
+        val visibleMeals =
+            if (activeFilter == null) allMeals else allMeals.filter { it.mealType == activeFilter }
+
         DiaryUiState(
             date = date,
-            entries = entries,
+            meals = visibleMeals,
+            filter = activeFilter,
+            hasAnyEntries = entries.isNotEmpty(),
             targets = targets,
             profileComplete = profile?.isComplete == true,
             consumedKcal = entries.sumOf { it.kcal },
@@ -79,17 +117,28 @@ class DiaryViewModel @Inject constructor(
         selectedDate.value = selectedDate.value.plusDays(1)
     }
 
+    fun setFilter(mealType: MealType?) {
+        filter.value = mealType
+    }
+
     fun updateEntry(entry: FoodEntry) = viewModelScope.launch {
         diaryRepository.update(entry)
     }
 
     fun deleteEntry(entry: FoodEntry) = viewModelScope.launch {
-        lastDeleted = entry
+        lastDeleted = listOf(entry)
         diaryRepository.delete(entry)
     }
 
+    fun deleteMeal(meal: DiaryMeal) = viewModelScope.launch {
+        lastDeleted = meal.items
+        diaryRepository.deleteGroup(meal.groupId)
+    }
+
     fun undoDelete() = viewModelScope.launch {
-        lastDeleted?.let { diaryRepository.add(it.copy(id = 0L)) }
-        lastDeleted = null
+        if (lastDeleted.isNotEmpty()) {
+            diaryRepository.addEntries(lastDeleted)
+            lastDeleted = emptyList()
+        }
     }
 }
