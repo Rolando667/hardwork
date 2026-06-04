@@ -14,9 +14,12 @@ from .base import ExchangeClient, ExchangeLoadError
 log = get_logger(__name__)
 
 
-def build_exchanges(cfg: Config) -> dict[str, ExchangeClient]:
-    """Return name -> loaded ExchangeClient for every exchange that loads."""
+def build_exchanges_verbose(
+    cfg: Config,
+) -> tuple[dict[str, ExchangeClient], dict[str, str]]:
+    """Like :func:`build_exchanges` but also return ``{name: skip_reason}``."""
     clients: dict[str, ExchangeClient] = {}
+    skipped: dict[str, str] = {}
     for name in cfg.exchanges:
         client = ExchangeClient(
             name=name,
@@ -28,7 +31,10 @@ def build_exchanges(cfg: Config) -> dict[str, ExchangeClient]:
             client.load()
             clients[name] = client
         except ExchangeLoadError as exc:
-            log.warning("exchange skipped: %s", exc)
+            # Keep the reason short (drop any large response body the exchange echoed).
+            reason = str(exc).splitlines()[0][:160]
+            skipped[name] = reason
+            log.warning("exchange skipped: %s", reason)
 
     if len(clients) < 2:
         loaded = ", ".join(clients) or "none"
@@ -37,4 +43,10 @@ def build_exchanges(cfg: Config) -> dict[str, ExchangeClient]:
             len(clients),
             loaded,
         )
+    return clients, skipped
+
+
+def build_exchanges(cfg: Config) -> dict[str, ExchangeClient]:
+    """Return name -> loaded ExchangeClient for every exchange that loads."""
+    clients, _ = build_exchanges_verbose(cfg)
     return clients

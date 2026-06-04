@@ -2,11 +2,13 @@
 
 Phase 1 (P0): read-only cross-exchange perp spread scanner. No keys, no orders.
 
-    python main.py                 # use ./config.yaml
-    python main.py path/to.yaml    # use a specific config
+    python main.py                 # console scanner, ./config.yaml
+    python main.py path/to.yaml    # console scanner, specific config
+    python main.py web             # read-only web dashboard (same data)
+    python main.py web path/to.yaml
 
-CLI flags, phase/strategy selection, and JSONL logging arrive in P1. For now the
-phase is read from config (only "p0" is implemented).
+Richer CLI flags, phase/strategy selection, and JSONL logging arrive in P1. For
+now the phase is read from config (only "p0" is implemented).
 """
 
 from __future__ import annotations
@@ -22,7 +24,12 @@ from arb_bot.scanner.scanner import scan
 
 
 def main(argv: list[str]) -> int:
-    config_path = argv[1] if len(argv) > 1 else "config.yaml"
+    args = argv[1:]
+    mode = "console"
+    if args and args[0] == "web":
+        mode, args = "web", args[1:]
+    config_path = args[0] if args else "config.yaml"
+
     cfg = load_config(config_path)
     setup_logging(cfg.runtime.log_level)
     log = get_logger("main")
@@ -30,6 +37,12 @@ def main(argv: list[str]) -> int:
     if cfg.phase != "p0":
         log.error("only phase 'p0' is implemented; config requested '%s'", cfg.phase)
         return 2
+
+    if mode == "web":
+        from arb_bot.web.server import run_dashboard
+
+        log.info("Phase 1 (P0) web dashboard — read-only, no keys. exchanges=%s", cfg.exchanges)
+        return run_dashboard(cfg, host=cfg.web.host, port=cfg.web.port)
 
     log.info("Phase 1 (P0) scanner — read-only, no keys. exchanges=%s", cfg.exchanges)
     clients = build_exchanges(cfg)

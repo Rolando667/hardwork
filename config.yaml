@@ -67,6 +67,11 @@ fees:
 
 runtime:
   loop: true                    # repeat scans; false = single pass then exit
-  loop_interval_seconds: 30     # pause between scans
+  loop_interval_seconds: 30     # pause between scans (also the dashboard refresh)
   request_timeout_ms: 15000     # per-request ccxt timeout
   log_level: INFO               # DEBUG | INFO | WARNING | ERROR
+
+# Read-only web dashboard (run with: python main.py web). Same data as the console.
+web:
+  host: 127.0.0.1               # use 0.0.0.0 to expose on your LAN (still read-only)
+  port: 8000

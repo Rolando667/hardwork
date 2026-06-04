@@ -65,6 +65,12 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True)
+class WebConfig:
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+
+@dataclass(frozen=True)
 class Config:
     phase: str
     strategy: str
@@ -75,6 +81,7 @@ class Config:
     sizing: SizingConfig
     fees: FeesConfig
     runtime: RuntimeConfig
+    web: WebConfig
 
 
 def load_config(path: str | Path = "config.yaml") -> Config:
@@ -112,6 +119,7 @@ def load_config(path: str | Path = "config.yaml") -> Config:
         sizing=SizingConfig(**_section(raw, "sizing")),
         fees=fees,
         runtime=RuntimeConfig(**_section(raw, "runtime")),
+        web=WebConfig(**_section(raw, "web")),
     )
 
     # Allow env to override the log level for quick debugging without editing yaml.

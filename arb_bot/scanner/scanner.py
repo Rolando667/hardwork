@@ -31,6 +31,9 @@ class ScanResult:
     stats: UniverseStats
     skipped_pairs: int = 0
     skip_reasons: dict[str, int] = field(default_factory=dict)
+    exchanges_loaded: list[str] = field(default_factory=list)
+    # exchange -> {"summary": "4h x6, 8h x14", "by_interval": {"4h": 6}, "inferred": 0}
+    funding_intervals: dict[str, dict] = field(default_factory=dict)
 
 
 def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
@@ -64,7 +67,7 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
             coins_per_ex.setdefault(ex, []).append(entry.coin)
     for name, coins in coins_per_ex.items():
         funding_by_ex[name] = clients[name].fetch_funding(coins)
-    _log_funding_intervals(funding_by_ex)
+    funding_intervals = _summarize_funding_intervals(funding_by_ex)
 
     # 4) Evaluate every exchange pair for every universe coin.
     opportunities: list[Opportunity] = []
@@ -100,6 +103,8 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
         stats=stats,
         skipped_pairs=skipped,
         skip_reasons=skip_reasons,
+        exchanges_loaded=list(clients),
+        funding_intervals=funding_intervals,
     )
 
 
@@ -162,12 +167,16 @@ def _evaluate(
     )
 
 
-def _log_funding_intervals(funding_by_ex: dict[str, dict[str, FundingSnapshot]]) -> None:
-    """Log the inferred funding interval per exchange so it can be eyeballed.
+def _summarize_funding_intervals(
+    funding_by_ex: dict[str, dict[str, FundingSnapshot]],
+) -> dict[str, dict]:
+    """Summarize the inferred funding interval per exchange, log it, and return it.
 
     A wrong interval silently corrupts net_funding — the biggest correctness
-    risk — so we surface what was inferred and flag fallbacks.
+    risk — so we surface what was inferred and flag fallbacks both in the log and
+    in the returned structure (consumed by the console report and web dashboard).
     """
+    out: dict[str, dict] = {}
     for ex, fundings in funding_by_ex.items():
         if not fundings:
             continue
@@ -177,6 +186,9 @@ def _log_funding_intervals(funding_by_ex: dict[str, dict[str, FundingSnapshot]])
             intervals[f.interval_hours] = intervals.get(f.interval_hours, 0) + 1
             if f.interval_inferred:
                 inferred += 1
-        summary = ", ".join(f"{h:g}h x{n}" for h, n in sorted(intervals.items()))
+        by_interval = {f"{h:g}h": n for h, n in sorted(intervals.items())}
+        summary = ", ".join(f"{k} x{n}" for k, n in by_interval.items())
         note = f" ({inferred} fell back to default)" if inferred else ""
         log.info("funding interval [%s]: %s%s", ex, summary, note)
+        out[ex] = {"summary": summary, "by_interval": by_interval, "inferred": inferred}
+    return out

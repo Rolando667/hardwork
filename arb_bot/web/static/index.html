@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>arb_bot — Phase 1 scanner</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --border: #283039; --text: #c9d1d9;
+    --muted: #8b949e; --green: #2ea043; --red: #e5534b; --amber: #d29922;
+    --accent: #388bfd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+  }
+  header { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  h1 small { color: var(--muted); font-weight: normal; font-size: 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 8px; }
+  .stat { color: var(--muted); }
+  .stat b { color: var(--text); }
+  main { padding: 14px 18px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+  }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted); margin: 0 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 3px 9px; border-radius: 12px; font-size: 12px;
+    border: 1px solid var(--border); display: inline-flex; gap: 6px; align-items: center;
+  }
+  .chip.up { border-color: var(--green); color: #7ee2a8; }
+  .chip.down { border-color: var(--red); color: #ffb3ae; }
+  .chip .sub { color: var(--muted); font-size: 11px; }
+  .controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  label.ctl { color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  input[type=number] { width: 70px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 5px; padding: 3px 6px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 5px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { text-align: left; }
+  th { cursor: pointer; color: var(--muted); user-select: none; position: sticky; top: 0;
+    background: var(--panel); font-weight: 600; }
+  th.sorted::after { content: " \25BE"; color: var(--accent); }
+  th.asc.sorted::after { content: " \25B4"; }
+  tbody tr:hover { background: #1c2230; }
+  tr.signal { background: rgba(46,160,67,.10); }
+  .pos { color: #7ee2a8; } .neg { color: #ff8a82; } .dim { color: var(--muted); }
+  .sig-yes { color: var(--green); font-weight: 700; }
+  .sig-no { color: var(--muted); }
+  .err { color: #ffb3ae; padding: 10px 12px; border: 1px solid var(--red);
+    border-radius: 8px; background: rgba(229,83,75,.08); margin-bottom: 14px; }
+  .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.live { background: var(--green); } .dot.stale { background: var(--amber); }
+</style>
+</head>
+<body>
+<header>
+  <h1>arb_bot <small>Phase 1 — read-only cross-exchange perp spread scanner</small></h1>
+  <div class="bar">
+    <span class="stat"><span id="dot" class="dot stale"></span> <span id="status">connecting…</span></span>
+    <span class="stat">threshold: <b id="threshold">—</b> bps</span>
+    <span class="stat">universe: <b id="uni">—</b></span>
+    <span class="stat">pairs: <b id="pairs">—</b></span>
+    <span class="stat">signals: <b id="signals">—</b></span>
+    <span class="stat">updated: <b id="updated">—</b></span>
+    <span class="stat">next: <b id="countdown">—</b>s</span>
+  </div>
+</header>
+<main>
+  <div id="error" class="err" style="display:none"></div>
+
+  <div class="panel">
+    <h2>Exchanges &amp; funding intervals</h2>
+    <div class="chips" id="exchanges"></div>
+    <div class="note" id="universe-line"></div>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <label class="ctl"><input type="checkbox" id="only-signals"> only signals</label>
+      <label class="ctl">min net (bps) <input type="number" id="min-net" value="-9999" step="1"></label>
+      <span class="note">click a column header to sort. all values in bps of one leg's notional unless noted; fund/cap are signed.</span>
+    </div>
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="note" id="empty" style="display:none">no evaluable exchange pairs — see server logs for skip reasons.</div>
+  </div>
+</main>
+
+<script>
+const COLS = [
+  ["#",            null,            "idx"],
+  ["coin",         "coin",          "txt"],
+  ["buy→sell",     "route",         "txt"],
+  ["size",         "size_coin",     "num6"],
+  ["$/leg",        "notional_quote","num2"],
+  ["gross",        "gross_bps",     "num1"],
+  ["comm",         "commission_bps","num1"],
+  ["half",         "half_spread_bps","num1"],
+  ["slip",         "slippage_bps",  "num1"],
+  ["fund",         "net_funding_bps","signed2"],
+  ["cap",          "capital_bps",   "num2"],
+  ["NET",          "net_bps",       "signed1"],
+  ["breakeven",    "breakeven_bps", "num1"],
+  ["ROC%",         "return_on_capital","roc"],
+  ["SIG",          "signal",        "sig"],
+];
+
+let sortKey = "net_bps", sortAsc = false, lastScan = null, refreshSec = 30, countdown = 0;
+
+function buildHead() {
+  const tr = document.getElementById("head");
+  tr.innerHTML = "";
+  for (const [label, key] of COLS) {
+    const th = document.createElement("th");
+    th.textContent = label;
+    if (key && key !== "route" && key !== "idx") {
+      th.onclick = () => { if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = false; } render(); };
+      if (key === sortKey) th.classList.add("sorted", sortAsc ? "asc" : "desc");
+    }
+    tr.appendChild(th);
+  }
+}
+
+function fmt(v, kind) {
+  if (v === null || v === undefined) return "—";
+  switch (kind) {
+    case "num6": return Number(v).toPrecision(6).replace(/\.?0+$/, "");
+    case "num2": return Number(v).toFixed(2);
+    case "num1": return Number(v).toFixed(1);
+    case "signed1": return (v >= 0 ? "+" : "") + Number(v).toFixed(1);
+    case "signed2": return (v >= 0 ? "+" : "") + Number(v).toFixed(2);
+    case "roc": return (v >= 0 ? "+" : "") + (v * 100).toFixed(3);
+    default: return v;
+  }
+}
+
+function cellClass(key, v) {
+  if (key === "net_bps" || key === "net_funding_bps" || key === "return_on_capital")
+    return v >= 0 ? "pos" : "neg";
+  return "";
+}
+
+function render() {
+  if (!lastScan) return;
+  let rows = lastScan.opportunities.slice();
+  if (document.getElementById("only-signals").checked) rows = rows.filter(r => r.signal);
+  const minNet = parseFloat(document.getElementById("min-net").value);
+  if (!isNaN(minNet)) rows = rows.filter(r => r.net_bps >= minNet);
+
+  rows.sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    const c = (typeof x === "string") ? x.localeCompare(y) : (x - y);
+    return sortAsc ? c : -c;
+  });
+
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  document.getElementById("empty").style.display = rows.length ? "none" : "block";
+
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    if (r.signal) tr.className = "signal";
+    for (const [, key, kind] of COLS) {
+      const td = document.createElement("td");
+      if (key === "idx") td.textContent = i + 1;
+      else if (key === "route") td.textContent = r.long_exchange + " → " + r.short_exchange;
+      else if (kind === "sig") { td.innerHTML = r.signal ? '<span class="sig-yes">YES</span>' : '<span class="sig-no">·</span>'; }
+      else { td.textContent = fmt(r[key], kind); td.className = cellClass(key, r[key]); }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+  buildHead();
+}
+
+function renderMeta(d) {
+  document.getElementById("error").style.display = d.error ? "block" : "none";
+  if (d.error) document.getElementById("error").textContent = d.error;
+
+  const exDiv = document.getElementById("exchanges");
+  exDiv.innerHTML = "";
+  const scan = d.scan;
+  const fi = scan ? scan.funding_intervals : {};
+  (scan ? scan.exchanges_loaded : []).forEach(ex => {
+    const c = document.createElement("span");
+    c.className = "chip up";
+    const f = fi[ex];
+    c.innerHTML = ex + (f ? ' <span class="sub">' + f.summary + (f.inferred ? " ⚠" + f.inferred : "") + "</span>" : "");
+    exDiv.appendChild(c);
+  });
+  Object.entries(d.skipped_exchanges || {}).forEach(([ex, reason]) => {
+    const c = document.createElement("span");
+    c.className = "chip down";
+    c.title = reason;
+    c.innerHTML = ex + ' <span class="sub">skipped</span>';
+    exDiv.appendChild(c);
+  });
+
+  if (scan) {
+    document.getElementById("threshold").textContent = scan.threshold_bps;
+    document.getElementById("uni").textContent = scan.stats.selected;
+    document.getElementById("pairs").textContent = scan.pairs_evaluated + " (" + scan.pairs_skipped + " skipped)";
+    document.getElementById("signals").textContent = scan.signals;
+    const s = scan.stats;
+    document.getElementById("universe-line").textContent =
+      `${s.total_coins_seen} coins seen · ${s.on_multiple_exchanges} on ≥2 venues · ` +
+      `${s.passed_volume} passed volume · ${s.selected} selected ` +
+      `(dropped ${s.dropped_single_exchange} single-venue, ${s.dropped_low_volume} low-volume): ` +
+      scan.universe.map(u => u.coin).join(", ");
+  }
+  document.getElementById("updated").textContent = d.last_update ? new Date(d.last_update).toLocaleTimeString() : "—";
+  const dot = document.getElementById("dot");
+  dot.className = "dot " + (d.ok ? "live" : "stale");
+  document.getElementById("status").textContent = d.ok ? "live" : (d.error ? "error" : "waiting for first scan…");
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/api/scan", { cache: "no-store" });
+    const d = await r.json();
+    refreshSec = d.refresh_seconds || 30;
+    lastScan = d.scan;
+    renderMeta(d);
+    render();
+    countdown = Math.round(refreshSec);
+  } catch (e) {
+    document.getElementById("status").textContent = "disconnected";
+    document.getElementById("dot").className = "dot stale";
+  }
+}
+
+document.getElementById("only-signals").onchange = render;
+document.getElementById("min-net").oninput = render;
+buildHead();
+poll();
+setInterval(poll, 5000);
+setInterval(() => {
+  countdown = Math.max(0, countdown - 1);
+  document.getElementById("countdown").textContent = countdown;
+}, 1000);
+</script>
+</body>
+</html>

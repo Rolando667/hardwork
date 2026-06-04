@@ -113,6 +113,7 @@ arb_bot/
   risk/      sizing.py            # symmetric delta-neutral sizing
   pairs/     validate.py          # same-asset, linear-only, sane book
   scanner/   universe.py, scanner.py, report.py
+  web/       server.py (stdlib dashboard), serialize.py, static/index.html
 logs/                   # JSONL/CSV journal lands here in P1
 tests/                  # unit tests land here in P1
 ```
@@ -148,7 +149,8 @@ Every threshold is tunable here. Defaults shipped:
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python main.py            # uses ./config.yaml; Ctrl-C to stop
+python main.py            # console scanner; uses ./config.yaml; Ctrl-C to stop
+python main.py web        # read-only web dashboard at http://127.0.0.1:8000
 ```
 
 You should see, per loop:
@@ -164,6 +166,26 @@ You should see, per loop:
 On liquid coins expect **0 signals** and best net spread near/below break-even —
 that is the honest, expected outcome. Coins where a symmetric $100 position cannot
 fit both venues' lot minimums are skipped (visible at `DEBUG` log level).
+
+### Web dashboard
+
+`python main.py web` starts a **read-only** dashboard (stdlib `http.server`, no
+extra dependencies) on `web.host:web.port` (default `127.0.0.1:8000`). A background
+thread runs the same `scan()` loop the console uses and stores the latest result;
+the page polls `/api/scan` and renders:
+
+- exchange status chips (loaded vs skipped, with the skip reason on hover);
+- inferred funding interval per exchange (with a ⚠ count if any fell back);
+- the universe summary (seen / on ≥2 venues / passed volume / selected);
+- a **sortable, filterable** opportunities table (click a column to sort; "only
+  signals" and "min net" filters), color-coded, refreshing on the scan interval.
+
+It shows the exact same numbers as the console — both go through the shared
+`fees/` engine. There are **no controls that place orders or change anything**; it
+is a viewer. Endpoints: `/` (page), `/api/scan` (JSON), `/health`. Set
+`web.host: 0.0.0.0` to reach it from your LAN (still read-only). Note that in an
+ephemeral container there is no stable public port — the dashboard is most useful
+when you run the bot on your own machine or a VPS.
 
 ### Network note (proxied / sandboxed environments)
 
