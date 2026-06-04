@@ -6,6 +6,7 @@ import com.calorieai.app.data.local.AppDatabase
 import com.calorieai.app.data.local.dao.AiCacheDao
 import com.calorieai.app.data.local.dao.FoodEntryDao
 import com.calorieai.app.data.local.dao.ProfileDao
+import com.calorieai.app.data.local.dao.WeightDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,6 +22,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -32,4 +34,7 @@ object DatabaseModule {
 
     @Provides
     fun provideAiCacheDao(db: AppDatabase): AiCacheDao = db.aiCacheDao()
+
+    @Provides
+    fun provideWeightDao(db: AppDatabase): WeightDao = db.weightDao()
 }

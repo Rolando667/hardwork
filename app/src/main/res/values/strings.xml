@@ -100,6 +100,10 @@
     <string name="stats_kcal_value">%1$d ккал</string>
     <string name="stats_empty_title">Ще немає даних</string>
     <string name="stats_empty_subtitle">Додавайте їжу в щоденник — і тут з\'являться графіки</string>
+    <string name="stats_weight_title">Динаміка ваги</string>
+    <string name="stats_weight_empty">Внесіть свою вагу, щоб бачити графік динаміки</string>
+    <string name="stats_weight_input">Вага сьогодні (кг)</string>
+    <string name="stats_weight_save">Зберегти</string>
 
     <!-- API-ключ -->
     <string name="profile_api_section">AI-аналіз (Anthropic)</string>
