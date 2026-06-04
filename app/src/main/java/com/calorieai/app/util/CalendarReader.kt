@@ -19,12 +19,16 @@ object CalendarReader {
             context, Manifest.permission.READ_CALENDAR
         ) == PackageManager.PERMISSION_GRANTED
 
+    /** true — якщо зараз триває зустріч (подія, що перетинається з поточним моментом). */
+    fun isBusyNow(context: Context): Boolean = currentMeetingEndMillis(context) != null
+
     /**
-     * true — якщо зараз триває зустріч (подія, що перетинається з поточним моментом).
+     * Час завершення зустрічі, що триває зараз (epoch millis), або null — якщо вільно.
+     * Якщо зустрічей кілька (накладаються), повертає найпізніше завершення.
      * Події на весь день та позначені «вільний» (Free) ігноруються.
      */
-    fun isBusyNow(context: Context): Boolean {
-        if (!hasPermission(context)) return false
+    fun currentMeetingEndMillis(context: Context): Long? {
+        if (!hasPermission(context)) return null
 
         val now = System.currentTimeMillis()
         val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
@@ -32,6 +36,7 @@ object CalendarReader {
         ContentUris.appendId(builder, now + ONE_MINUTE_MS)
 
         val projection = arrayOf(
+            CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
             CalendarContract.Instances.AVAILABILITY
         )
@@ -39,17 +44,21 @@ object CalendarReader {
         return try {
             context.contentResolver.query(builder.build(), projection, null, null, null)
                 ?.use { cursor ->
+                    var latestEnd: Long? = null
                     while (cursor.moveToNext()) {
-                        val allDay = cursor.getInt(0) == 1
-                        val availability = cursor.getInt(1)
+                        val end = cursor.getLong(0)
+                        val allDay = cursor.getInt(1) == 1
+                        val availability = cursor.getInt(2)
                         if (allDay) continue
                         if (availability == CalendarContract.Instances.AVAILABILITY_FREE) continue
-                        return true
+                        if (end > now && (latestEnd == null || end > latestEnd!!)) {
+                            latestEnd = end
+                        }
                     }
-                    false
-                } ?: false
+                    latestEnd
+                }
         } catch (e: SecurityException) {
-            false
+            null
         }
     }
 

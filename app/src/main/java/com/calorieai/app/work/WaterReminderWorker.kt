@@ -9,12 +9,17 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.calorieai.app.MainActivity
 import com.calorieai.app.R
 import com.calorieai.app.util.CalendarReader
 import com.calorieai.app.util.Notifications
+import java.util.concurrent.TimeUnit
 
 /** Показує сповіщення-нагадування випити склянку води. */
 class WaterReminderWorker(
@@ -25,10 +30,15 @@ class WaterReminderWorker(
     override fun doWork(): Result {
         val context = applicationContext
 
-        // Якщо увімкнено пропуск під час зустрічей і зараз триває зустріч — мовчимо.
+        // Якщо увімкнено пропуск під час зустрічей і зараз триває зустріч — не
+        // нагадуємо зараз, а переносимо нагадування на 10 хв після її завершення.
         val skipDuringMeetings = inputData.getBoolean(KEY_SKIP_MEETINGS, false)
-        if (skipDuringMeetings && CalendarReader.isBusyNow(context)) {
-            return Result.success()
+        if (skipDuringMeetings) {
+            val meetingEnd = CalendarReader.currentMeetingEndMillis(context)
+            if (meetingEnd != null) {
+                scheduleAfterMeeting(context, meetingEnd)
+                return Result.success()
+            }
         }
 
         // На Android 13+ потрібен дозвіл POST_NOTIFICATIONS.
@@ -64,7 +74,31 @@ class WaterReminderWorker(
         return Result.success()
     }
 
+    /**
+     * Планує одноразове нагадування через 10 хв після завершення зустрічі.
+     * Коли воно спрацює, перевірка зустрічі повториться: якщо почалася нова —
+     * нагадування знову відкладеться до її кінця (ланцюжок переносів).
+     */
+    private fun scheduleAfterMeeting(context: Context, meetingEndMillis: Long) {
+        val delayMs = (meetingEndMillis - System.currentTimeMillis() + AFTER_MEETING_DELAY_MS)
+            .coerceAtLeast(ONE_MINUTE_MS)
+
+        val followUp = OneTimeWorkRequestBuilder<WaterReminderWorker>()
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .setInputData(workDataOf(KEY_SKIP_MEETINGS to true))
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            FOLLOWUP_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            followUp
+        )
+    }
+
     companion object {
         const val KEY_SKIP_MEETINGS = "skip_meetings"
+        private const val FOLLOWUP_WORK_NAME = "water_reminder_followup"
+        private const val AFTER_MEETING_DELAY_MS = 10 * 60_000L
+        private const val ONE_MINUTE_MS = 60_000L
     }
 }
