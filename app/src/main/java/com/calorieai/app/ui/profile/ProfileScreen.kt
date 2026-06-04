@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,6 +65,7 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
     var apiKeyVisible by remember { mutableStateOf(false) }
 
     // Дозвіл на сповіщення (Android 13+) для нагадувань пити воду.
@@ -69,6 +73,13 @@ fun ProfileScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         viewModel.onWaterReminderChange(granted)
+    }
+
+    // Дозвіл на читання календаря — щоб не нагадувати під час зустрічей.
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onSkipDuringMeetingsChange(granted)
     }
 
     val savedMessage = stringResource(R.string.profile_saved)
@@ -308,6 +319,38 @@ fun ProfileScreen(
                         )
                     }
                 }
+
+                // Інтеграція з календарем: не нагадувати під час зустрічей.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_water_skip_meetings),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = state.skipDuringMeetings,
+                        onCheckedChange = { enabled ->
+                            val granted = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.READ_CALENDAR
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (enabled && !granted) {
+                                calendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                            } else {
+                                viewModel.onSkipDuringMeetingsChange(enabled)
+                            }
+                        }
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.profile_water_skip_meetings_help),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

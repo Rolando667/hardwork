@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private data class WaterConfig(
+    val enabled: Boolean,
+    val intervalHours: Int,
+    val skipDuringMeetings: Boolean
+)
+
 @HiltAndroidApp
 class CalorieApp : Application() {
 
@@ -38,10 +44,16 @@ class CalorieApp : Application() {
         // Плануємо/скасовуємо нагадування пити воду згідно з налаштуваннями.
         appScope.launch {
             settingsRepository.settings
-                .map { it.waterReminderEnabled to it.waterIntervalHours }
+                .map {
+                    WaterConfig(it.waterReminderEnabled, it.waterIntervalHours, it.skipDuringMeetings)
+                }
                 .distinctUntilChanged()
-                .collect { (enabled, hours) ->
-                    if (enabled) waterScheduler.schedule(hours) else waterScheduler.cancel()
+                .collect { config ->
+                    if (config.enabled) {
+                        waterScheduler.schedule(config.intervalHours, config.skipDuringMeetings)
+                    } else {
+                        waterScheduler.cancel()
+                    }
                 }
         }
     }

@@ -33,6 +33,7 @@ data class ProfileUiState(
     val apiKey: String = "",
     val waterReminderEnabled: Boolean = false,
     val waterIntervalHours: Int = 2,
+    val skipDuringMeetings: Boolean = false,
     val targets: NutritionTargets? = null,
     val errorRes: Int? = null,
     val savedEvent: Boolean = false
@@ -75,7 +76,8 @@ class ProfileViewModel @Inject constructor(
                         themeMode = settings.themeMode,
                         dynamicColor = settings.dynamicColor,
                         waterReminderEnabled = settings.waterReminderEnabled,
-                        waterIntervalHours = settings.waterIntervalHours
+                        waterIntervalHours = settings.waterIntervalHours,
+                        skipDuringMeetings = settings.skipDuringMeetings
                     )
                 }
             }
@@ -95,6 +97,11 @@ class ProfileViewModel @Inject constructor(
     fun onWaterIntervalChange(hours: Int) {
         _state.update { it.copy(waterIntervalHours = hours) }
         viewModelScope.launch { settingsRepository.setWaterIntervalHours(hours) }
+    }
+
+    fun onSkipDuringMeetingsChange(enabled: Boolean) {
+        _state.update { it.copy(skipDuringMeetings = enabled) }
+        viewModelScope.launch { settingsRepository.setSkipDuringMeetings(enabled) }
     }
 
     fun onAgeChange(value: String) = updateField { it.copy(age = value.filterDigits()) }

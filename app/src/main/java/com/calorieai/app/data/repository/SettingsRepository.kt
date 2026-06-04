@@ -21,7 +21,8 @@ data class AppSettings(
     val dynamicColor: Boolean = true,
     val apiKey: String = "",
     val waterReminderEnabled: Boolean = false,
-    val waterIntervalHours: Int = DEFAULT_WATER_INTERVAL_HOURS
+    val waterIntervalHours: Int = DEFAULT_WATER_INTERVAL_HOURS,
+    val skipDuringMeetings: Boolean = false
 ) {
     companion object {
         const val DEFAULT_WATER_INTERVAL_HOURS = 2
@@ -38,6 +39,7 @@ class SettingsRepository @Inject constructor(
         val API_KEY = stringPreferencesKey("api_key")
         val WATER_ENABLED = booleanPreferencesKey("water_reminder_enabled")
         val WATER_INTERVAL = intPreferencesKey("water_interval_hours")
+        val SKIP_MEETINGS = booleanPreferencesKey("water_skip_meetings")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -49,7 +51,8 @@ class SettingsRepository @Inject constructor(
             apiKey = prefs[Keys.API_KEY] ?: "",
             waterReminderEnabled = prefs[Keys.WATER_ENABLED] ?: false,
             waterIntervalHours = prefs[Keys.WATER_INTERVAL]
-                ?: AppSettings.DEFAULT_WATER_INTERVAL_HOURS
+                ?: AppSettings.DEFAULT_WATER_INTERVAL_HOURS,
+            skipDuringMeetings = prefs[Keys.SKIP_MEETINGS] ?: false
         )
     }
 
@@ -71,5 +74,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setWaterIntervalHours(hours: Int) {
         context.dataStore.edit { it[Keys.WATER_INTERVAL] = hours }
+    }
+
+    suspend fun setSkipDuringMeetings(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SKIP_MEETINGS] = enabled }
     }
 }

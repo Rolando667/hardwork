@@ -13,6 +13,7 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.calorieai.app.MainActivity
 import com.calorieai.app.R
+import com.calorieai.app.util.CalendarReader
 import com.calorieai.app.util.Notifications
 
 /** Показує сповіщення-нагадування випити склянку води. */
@@ -23,6 +24,12 @@ class WaterReminderWorker(
 
     override fun doWork(): Result {
         val context = applicationContext
+
+        // Якщо увімкнено пропуск під час зустрічей і зараз триває зустріч — мовчимо.
+        val skipDuringMeetings = inputData.getBoolean(KEY_SKIP_MEETINGS, false)
+        if (skipDuringMeetings && CalendarReader.isBusyNow(context)) {
+            return Result.success()
+        }
 
         // На Android 13+ потрібен дозвіл POST_NOTIFICATIONS.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -55,5 +62,9 @@ class WaterReminderWorker(
             .notify(Notifications.WATER_NOTIFICATION_ID, notification)
 
         return Result.success()
+    }
+
+    companion object {
+        const val KEY_SKIP_MEETINGS = "skip_meetings"
     }
 }

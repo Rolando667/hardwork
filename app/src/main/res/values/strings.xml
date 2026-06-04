@@ -116,6 +116,9 @@
     <string name="profile_water_interval">Як часто нагадувати</string>
     <string name="profile_water_every_hours">Кожні %1$d год</string>
     <string name="profile_water_permission_needed">Дозвольте сповіщення, щоб отримувати нагадування</string>
+    <string name="profile_water_skip_meetings">Не нагадувати під час зустрічей</string>
+    <string name="profile_water_skip_meetings_help">Додаток читає ваш календар на телефоні й не нагадуватиме, коли у вас зустріч у цей час.</string>
+    <string name="profile_calendar_permission_needed">Потрібен дозвіл «Календар», щоб бачити зустрічі</string>
     <string name="water_notif_title">Час пити воду 💧</string>
     <string name="water_notif_text">Зробіть кілька ковтків води — ваш організм подякує!</string>
 
