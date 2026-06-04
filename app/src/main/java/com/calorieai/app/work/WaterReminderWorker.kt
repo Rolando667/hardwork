@@ -30,15 +30,24 @@ class WaterReminderWorker(
     override fun doWork(): Result {
         val context = applicationContext
 
+        val skipDuringMeetings = inputData.getBoolean(KEY_SKIP_MEETINGS, false)
+        val isFollowup = inputData.getBoolean(KEY_IS_FOLLOWUP, false)
+
         // Якщо увімкнено пропуск під час зустрічей і зараз триває зустріч — не
         // нагадуємо зараз, а переносимо нагадування на 10 хв після її завершення.
-        val skipDuringMeetings = inputData.getBoolean(KEY_SKIP_MEETINGS, false)
         if (skipDuringMeetings) {
             val meetingEnd = CalendarReader.currentMeetingEndMillis(context)
             if (meetingEnd != null) {
                 scheduleAfterMeeting(context, meetingEnd)
                 return Result.success()
             }
+        }
+
+        // Вільний час: показуємо нагадування. Якщо це звичайне (періодичне)
+        // спрацювання — скасовуємо стару відкладену спробу, щоб вона не показалась
+        // пізніше (вже настав час свіжого нагадування — старе не потрібне).
+        if (!isFollowup) {
+            WorkManager.getInstance(context).cancelUniqueWork(FOLLOWUP_WORK_NAME)
         }
 
         // На Android 13+ потрібен дозвіл POST_NOTIFICATIONS.
@@ -85,7 +94,9 @@ class WaterReminderWorker(
 
         val followUp = OneTimeWorkRequestBuilder<WaterReminderWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
-            .setInputData(workDataOf(KEY_SKIP_MEETINGS to true))
+            .setInputData(
+                workDataOf(KEY_SKIP_MEETINGS to true, KEY_IS_FOLLOWUP to true)
+            )
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -97,6 +108,7 @@ class WaterReminderWorker(
 
     companion object {
         const val KEY_SKIP_MEETINGS = "skip_meetings"
+        const val KEY_IS_FOLLOWUP = "is_followup"
         private const val FOLLOWUP_WORK_NAME = "water_reminder_followup"
         private const val AFTER_MEETING_DELAY_MS = 10 * 60_000L
         private const val ONE_MINUTE_MS = 60_000L
