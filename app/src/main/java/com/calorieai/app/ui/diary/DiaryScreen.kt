@@ -22,8 +22,8 @@ import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -224,16 +224,13 @@ private fun MealCard(
     onDeleteItem: (FoodEntry) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ElevatedCard(
         onClick = onToggle,
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,7 +265,7 @@ private fun MealCard(
                     Icon(
                         Icons.Filled.DeleteOutline,
                         contentDescription = stringResource(R.string.entry_delete),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Icon(
@@ -327,7 +324,7 @@ private fun ComponentRow(
             Icon(
                 Icons.Filled.DeleteOutline,
                 contentDescription = stringResource(R.string.entry_delete),
-                tint = MaterialTheme.colorScheme.error
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -374,13 +371,10 @@ private fun dateLabel(date: LocalDate): String = when (date) {
 
 @Composable
 private fun SummaryCard(state: DiaryUiState) {
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
     ) {
         Column(
             modifier = Modifier
