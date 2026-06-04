@@ -20,6 +20,7 @@ import com.calorieai.app.ui.diary.DiaryScreen
 import com.calorieai.app.ui.navigation.BottomNavBar
 import com.calorieai.app.ui.navigation.Screen
 import com.calorieai.app.ui.profile.ProfileScreen
+import com.calorieai.app.ui.stats.StatsScreen
 
 /** Корінь застосунку: Scaffold з нижньою навігацією та NavHost. */
 @Composable
@@ -63,6 +64,7 @@ fun AppRoot() {
                     }
                 })
             }
+            composable(Screen.Stats.route) { StatsScreen() }
             composable(Screen.Profile.route) { ProfileScreen() }
         }
     }

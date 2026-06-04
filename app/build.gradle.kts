@@ -110,6 +110,9 @@ dependencies {
     // DataStore (налаштування теми)
     implementation(libs.androidx.datastore.preferences)
 
+    // WorkManager (нагадування пити воду)
+    implementation(libs.androidx.work.runtime)
+
     // Завантаження зображень
     implementation(libs.coil.compose)
 

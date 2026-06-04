@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,6 +30,9 @@ data class ProfileUiState(
     val goal: Goal = Goal.MAINTAIN,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
+    val apiKey: String = "",
+    val waterReminderEnabled: Boolean = false,
+    val waterIntervalHours: Int = 2,
     val targets: NutritionTargets? = null,
     val errorRes: Int? = null,
     val savedEvent: Boolean = false
@@ -59,16 +63,38 @@ class ProfileViewModel @Inject constructor(
                 recomputeTargets()
             }
         }
+        // Ключ підвантажуємо один раз, щоб не перетирати поле під час набору.
+        viewModelScope.launch {
+            val initial = settingsRepository.settings.first()
+            _state.update { it.copy(apiKey = initial.apiKey) }
+        }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
                 _state.update {
                     it.copy(
                         themeMode = settings.themeMode,
-                        dynamicColor = settings.dynamicColor
+                        dynamicColor = settings.dynamicColor,
+                        waterReminderEnabled = settings.waterReminderEnabled,
+                        waterIntervalHours = settings.waterIntervalHours
                     )
                 }
             }
         }
+    }
+
+    fun onApiKeyChange(value: String) {
+        _state.update { it.copy(apiKey = value) }
+        viewModelScope.launch { settingsRepository.setApiKey(value) }
+    }
+
+    fun onWaterReminderChange(enabled: Boolean) {
+        _state.update { it.copy(waterReminderEnabled = enabled) }
+        viewModelScope.launch { settingsRepository.setWaterReminderEnabled(enabled) }
+    }
+
+    fun onWaterIntervalChange(hours: Int) {
+        _state.update { it.copy(waterIntervalHours = hours) }
+        viewModelScope.launch { settingsRepository.setWaterIntervalHours(hours) }
     }
 
     fun onAgeChange(value: String) = updateField { it.copy(age = value.filterDigits()) }

@@ -1,5 +1,6 @@
 package com.calorieai.app.data.repository
 
+import com.calorieai.app.data.local.dao.DailyTotal
 import com.calorieai.app.data.local.dao.FoodEntryDao
 import com.calorieai.app.data.local.entity.FoodEntryEntity
 import com.calorieai.app.domain.model.EntrySource
@@ -20,6 +21,9 @@ class DiaryRepository @Inject constructor(
 
     fun observeDatesWithEntries(): Flow<List<LocalDate>> =
         foodEntryDao.observeDatesWithEntries()
+
+    fun observeDailyTotals(limit: Int): Flow<List<DailyTotal>> =
+        foodEntryDao.observeDailyTotals(limit)
 
     suspend fun add(entry: FoodEntry): Long =
         foodEntryDao.insert(FoodEntryEntity.fromDomain(entry))

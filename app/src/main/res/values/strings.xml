@@ -4,6 +4,7 @@
     <!-- Нижня навігація -->
     <string name="nav_diary">Щоденник</string>
     <string name="nav_add">Додати</string>
+    <string name="nav_stats">Статистика</string>
     <string name="nav_profile">Профіль</string>
 
     <!-- Щоденник -->
@@ -86,6 +87,37 @@
     <string name="profile_theme_dark">Темна</string>
     <string name="profile_dynamic_color">Динамічні кольори (Material You)</string>
     <string name="profile_invalid">Заповніть усі поля коректними значеннями</string>
+
+    <!-- Статистика -->
+    <string name="stats_title">Статистика</string>
+    <string name="stats_week">Тиждень</string>
+    <string name="stats_month">Місяць</string>
+    <string name="stats_kcal_by_day">Калорії за днями</string>
+    <string name="stats_target_line">— — пунктир: денна норма %1$d ккал</string>
+    <string name="stats_avg">Середнє</string>
+    <string name="stats_max">Максимум</string>
+    <string name="stats_days_logged">Днів записано</string>
+    <string name="stats_kcal_value">%1$d ккал</string>
+    <string name="stats_empty_title">Ще немає даних</string>
+    <string name="stats_empty_subtitle">Додавайте їжу в щоденник — і тут з\'являться графіки</string>
+
+    <!-- API-ключ -->
+    <string name="profile_api_section">AI-аналіз (Anthropic)</string>
+    <string name="profile_api_key">API-ключ Anthropic</string>
+    <string name="profile_api_key_hint">sk-ant-…</string>
+    <string name="profile_api_key_help">Ключ зберігається лише на вашому пристрої. Отримати: console.anthropic.com → API Keys.</string>
+    <string name="profile_api_key_saved">Ключ збережено</string>
+    <string name="profile_api_key_show">Показати ключ</string>
+    <string name="profile_api_key_hide">Сховати ключ</string>
+
+    <!-- Нагадування пити воду -->
+    <string name="profile_water_section">Нагадування пити воду</string>
+    <string name="profile_water_enable">Нагадувати пити воду</string>
+    <string name="profile_water_interval">Як часто нагадувати</string>
+    <string name="profile_water_every_hours">Кожні %1$d год</string>
+    <string name="profile_water_permission_needed">Дозвольте сповіщення, щоб отримувати нагадування</string>
+    <string name="water_notif_title">Час пити воду 💧</string>
+    <string name="water_notif_text">Зробіть кілька ковтків води — ваш організм подякує!</string>
 
     <!-- Помилки / стани -->
     <string name="error_network">Помилка мережі. Перевірте з\'єднання.</string>

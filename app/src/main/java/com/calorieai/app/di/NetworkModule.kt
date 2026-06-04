@@ -2,6 +2,7 @@ package com.calorieai.app.di
 
 import com.calorieai.app.BuildConfig
 import com.calorieai.app.data.remote.AnthropicApi
+import com.calorieai.app.data.remote.ApiKeyHolder
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
@@ -27,7 +28,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(apiKeyHolder: ApiKeyHolder): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BASIC
@@ -37,9 +38,10 @@ object NetworkModule {
         }
 
         // Заголовки автентифікації Anthropic додаються до кожного запиту.
+        // Ключ читається з ApiKeyHolder, тож оновлюється без перестворення клієнта.
         val authInterceptor = okhttp3.Interceptor { chain ->
             val request = chain.request().newBuilder()
-                .addHeader("x-api-key", BuildConfig.ANTHROPIC_API_KEY)
+                .addHeader("x-api-key", apiKeyHolder.key)
                 .addHeader("anthropic-version", AnthropicApi.ANTHROPIC_VERSION)
                 .addHeader("content-type", "application/json")
                 .build()

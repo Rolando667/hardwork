@@ -2,11 +2,11 @@ package com.calorieai.app.data.repository
 
 import android.content.Context
 import android.net.Uri
-import com.calorieai.app.BuildConfig
 import com.calorieai.app.R
 import com.calorieai.app.data.local.dao.AiCacheDao
 import com.calorieai.app.data.local.entity.AiCacheEntity
 import com.calorieai.app.data.remote.AnthropicApi
+import com.calorieai.app.data.remote.ApiKeyHolder
 import com.calorieai.app.data.remote.JsonExtractor
 import com.calorieai.app.data.remote.Prompts
 import com.calorieai.app.data.remote.dto.AnalysisResult
@@ -33,6 +33,7 @@ import javax.inject.Singleton
 class FoodAnalysisRepository @Inject constructor(
     private val api: AnthropicApi,
     private val aiCacheDao: AiCacheDao,
+    private val apiKeyHolder: ApiKeyHolder,
     moshi: Moshi,
     @ApplicationContext private val context: Context
 ) {
@@ -133,7 +134,7 @@ class FoodAnalysisRepository @Inject constructor(
         )
     }
 
-    private fun hasApiKey(): Boolean = BuildConfig.ANTHROPIC_API_KEY.isNotBlank()
+    private fun hasApiKey(): Boolean = apiKeyHolder.hasKey
 
     private fun cacheKey(prefix: String, payload: String): String {
         val digest = MessageDigest.getInstance("SHA-256")

@@ -10,9 +10,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,11 +37,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +62,14 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var apiKeyVisible by remember { mutableStateOf(false) }
+
+    // Дозвіл на сповіщення (Android 13+) для нагадувань пити воду.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onWaterReminderChange(granted)
+    }
 
     val savedMessage = stringResource(R.string.profile_saved)
     state.errorRes?.let { res ->
@@ -210,6 +231,83 @@ fun ProfileScreen(
                     checked = state.dynamicColor,
                     onCheckedChange = viewModel::onDynamicColorChange
                 )
+            }
+
+            HorizontalDivider()
+
+            // --- AI-ключ ---
+            SectionLabel(stringResource(R.string.profile_api_section))
+            OutlinedTextField(
+                value = state.apiKey,
+                onValueChange = viewModel::onApiKeyChange,
+                label = { Text(stringResource(R.string.profile_api_key)) },
+                placeholder = { Text(stringResource(R.string.profile_api_key_hint)) },
+                singleLine = true,
+                visualTransformation = if (apiKeyVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                        Icon(
+                            imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff
+                            else Icons.Filled.Visibility,
+                            contentDescription = stringResource(
+                                if (apiKeyVisible) R.string.profile_api_key_hide
+                                else R.string.profile_api_key_show
+                            )
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = stringResource(R.string.profile_api_key_help),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            HorizontalDivider()
+
+            // --- Нагадування пити воду ---
+            SectionLabel(stringResource(R.string.profile_water_section))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.profile_water_enable),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Switch(
+                    checked = state.waterReminderEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            // Спершу питаємо дозвіл; результат увімкне/вимкне нагадування.
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        } else {
+                            viewModel.onWaterReminderChange(enabled)
+                        }
+                    }
+                )
+            }
+            if (state.waterReminderEnabled) {
+                Text(
+                    text = stringResource(R.string.profile_water_interval),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(1, 2, 3, 4).forEach { hours ->
+                        FilterChip(
+                            selected = state.waterIntervalHours == hours,
+                            onClick = { viewModel.onWaterIntervalChange(hours) },
+                            label = { Text(stringResource(R.string.profile_water_every_hours, hours)) }
+                        )
+                    }
+                }
             }
         }
     }
