@@ -12,7 +12,7 @@ interface AnthropicApi {
 
     companion object {
         const val BASE_URL = "https://api.anthropic.com/"
-        const val MODEL = "claude-sonnet-4-20250514"
+        const val MODEL = "claude-sonnet-4-6"
         const val ANTHROPIC_VERSION = "2023-06-01"
         const val MAX_TOKENS = 1024
     }
