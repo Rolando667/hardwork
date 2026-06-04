@@ -134,6 +134,11 @@
     <string name="profile_water_skip_meetings">Не нагадувати під час зустрічей</string>
     <string name="profile_water_skip_meetings_help">Додаток читає ваш календар на телефоні й не нагадує під час зустрічі — натомість нагадає через 10 хв після її завершення (якщо немає нової зустрічі).</string>
     <string name="profile_calendar_permission_needed">Потрібен дозвіл «Календар», щоб бачити зустрічі</string>
+    <string name="profile_calendar_status_checking">Перевіряю календар…</string>
+    <string name="profile_calendar_status_free">✅ Зараз вільно — нагадування прийде</string>
+    <string name="profile_calendar_status_busy">⏳ Зараз триває зустріч до %1$s — нагадування відкладеться</string>
+    <string name="profile_calendar_status_no_permission">Немає дозволу на читання календаря</string>
+    <string name="profile_calendar_refresh">Перевірити зараз</string>
     <string name="water_notif_title">Час пити воду 💧</string>
     <string name="water_notif_text">Зробіть кілька ковтків води — ваш організм подякує!</string>
 

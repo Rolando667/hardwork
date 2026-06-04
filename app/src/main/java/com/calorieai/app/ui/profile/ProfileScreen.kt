@@ -351,10 +351,76 @@ fun ProfileScreen(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (state.skipDuringMeetings) {
+                    CalendarStatus()
+                }
             }
         }
     }
 }
+
+/** Жива перевірка: чи бачить додаток зустріч у календарі прямо зараз. */
+@Composable
+private fun CalendarStatus() {
+    val context = LocalContext.current
+    var refresh by remember { mutableStateOf(0) }
+
+    val probe by androidx.compose.runtime.produceState<MeetingProbe>(
+        initialValue = MeetingProbe.Loading,
+        refresh
+    ) {
+        value = if (!com.calorieai.app.util.CalendarReader.hasPermission(context)) {
+            MeetingProbe.NoPermission
+        } else {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val end = com.calorieai.app.util.CalendarReader.currentMeetingEndMillis(context)
+                if (end != null) MeetingProbe.Busy(end) else MeetingProbe.Free
+            }
+        }
+    }
+
+    val statusText = when (val p = probe) {
+        MeetingProbe.Loading -> stringResource(R.string.profile_calendar_status_checking)
+        MeetingProbe.NoPermission -> stringResource(R.string.profile_calendar_status_no_permission)
+        MeetingProbe.Free -> stringResource(R.string.profile_calendar_status_free)
+        is MeetingProbe.Busy -> stringResource(
+            R.string.profile_calendar_status_busy,
+            formatMillisToTime(p.endMillis)
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        androidx.compose.material3.TextButton(onClick = { refresh++ }) {
+            Text(stringResource(R.string.profile_calendar_refresh))
+        }
+    }
+}
+
+private sealed interface MeetingProbe {
+    data object Loading : MeetingProbe
+    data object NoPermission : MeetingProbe
+    data object Free : MeetingProbe
+    data class Busy(val endMillis: Long) : MeetingProbe
+}
+
+private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+
+private fun formatMillisToTime(millis: Long): String =
+    java.time.Instant.ofEpochMilli(millis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalTime()
+        .format(timeFmt)
 
 @Composable
 private fun SectionLabel(text: String) {
