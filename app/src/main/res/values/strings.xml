@@ -30,6 +30,8 @@
     <string name="entry_delete">Видалити</string>
     <string name="entry_deleted">Запис видалено</string>
     <string name="entry_undo">Скасувати</string>
+    <string name="delete_confirm_title">Видалити?</string>
+    <string name="delete_confirm_message">Ви впевнені, що хочете видалити цей запис? Цю дію можна буде скасувати.</string>
     <string name="entry_name">Назва</string>
     <string name="entry_grams">Грамовка (г)</string>
     <string name="entry_kcal_label">Калорії (ккал)</string>

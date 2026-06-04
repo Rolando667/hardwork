@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +35,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,6 +74,8 @@ fun DiaryScreen(
     val scope = rememberCoroutineScope()
     var editing by remember { mutableStateOf<FoodEntry?>(null) }
     var expandedIds by remember { mutableStateOf(setOf<String>()) }
+    // Дія видалення, що очікує підтвердження в діалозі.
+    var pendingDelete by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val deletedMessage = stringResource(R.string.entry_deleted)
     val undoLabel = stringResource(R.string.entry_undo)
@@ -137,9 +141,13 @@ fun DiaryScreen(
                                 expandedIds + meal.groupId
                             }
                         },
-                        onDeleteMeal = { confirmDelete { viewModel.deleteMeal(meal) } },
+                        onDeleteMeal = {
+                            pendingDelete = { confirmDelete { viewModel.deleteMeal(meal) } }
+                        },
                         onEditItem = { editing = it },
-                        onDeleteItem = { item -> confirmDelete { viewModel.deleteEntry(item) } },
+                        onDeleteItem = { item ->
+                            pendingDelete = { confirmDelete { viewModel.deleteEntry(item) } }
+                        },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -155,6 +163,30 @@ fun DiaryScreen(
                 editing = null
             },
             onDismiss = { editing = null }
+        )
+    }
+
+    pendingDelete?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.delete_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    action()
+                    pendingDelete = null
+                }) {
+                    Text(
+                        text = stringResource(R.string.entry_delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.entry_cancel))
+                }
+            }
         )
     }
 }
