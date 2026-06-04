@@ -85,11 +85,24 @@ class FoodAnalysisRepository @Inject constructor(
                 val response = api.createMessage(request)
                 parse(response.textContent())
             } catch (e: IOException) {
-                return OperationResult.Error(R.string.error_network, e)
+                return OperationResult.Error(R.string.error_network, cause = e)
+            } catch (e: retrofit2.HttpException) {
+                // Сервер відповів помилкою (напр. 401 невірний ключ або 400 немає
+                // коштів) — дістаємо й показуємо конкретне повідомлення.
+                val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                val message = extractApiError(body) ?: "HTTP ${e.code()}"
+                return OperationResult.Error(
+                    R.string.error_unknown,
+                    errorMessage = message,
+                    cause = e
+                )
             } catch (e: Exception) {
-                // HTTP-помилки Retrofit тощо.
                 if (attempt == MAX_ATTEMPTS - 1) {
-                    return OperationResult.Error(R.string.error_unknown, e)
+                    return OperationResult.Error(
+                        R.string.error_unknown,
+                        errorMessage = e.message,
+                        cause = e
+                    )
                 }
                 null
             }
@@ -132,6 +145,13 @@ class FoodAnalysisRepository @Inject constructor(
                 createdAt = System.currentTimeMillis()
             )
         )
+    }
+
+    /** Витягає поле error.message з тіла помилки Anthropic API. */
+    private fun extractApiError(body: String?): String? {
+        if (body.isNullOrBlank()) return null
+        val match = Regex("\"message\"\\s*:\\s*\"(.*?)\"").find(body)
+        return match?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
     }
 
     private fun hasApiKey(): Boolean = apiKeyHolder.hasKey

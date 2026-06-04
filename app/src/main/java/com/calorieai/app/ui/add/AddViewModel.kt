@@ -29,6 +29,7 @@ data class AddUiState(
     val note: String? = null,
     val source: EntrySource = EntrySource.TEXT,
     val errorRes: Int? = null,
+    val errorMessage: String? = null,
     val savedEvent: Boolean = false
 ) {
     val totalKcal: Int get() = results.sumOf { it.kcal }
@@ -77,7 +78,11 @@ class AddViewModel @Inject constructor(
                     )
                 }
                 is OperationResult.Error -> _state.update {
-                    it.copy(isLoading = false, errorRes = result.errorRes)
+                    it.copy(
+                        isLoading = false,
+                        errorRes = result.errorRes,
+                        errorMessage = result.errorMessage
+                    )
                 }
                 OperationResult.Loading -> Unit
             }
@@ -115,7 +120,7 @@ class AddViewModel @Inject constructor(
         _state.update { it.copy(results = emptyList(), note = null, photoUri = null) }
     }
 
-    fun errorShown() = _state.update { it.copy(errorRes = null) }
+    fun errorShown() = _state.update { it.copy(errorRes = null, errorMessage = null) }
 
     fun savedEventHandled() = _state.update { it.copy(savedEvent = false) }
 }

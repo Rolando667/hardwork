@@ -70,11 +70,15 @@ fun AddScreen(
     val savedMessage = stringResource(R.string.add_saved)
     val cameraDeniedMessage = stringResource(R.string.permission_camera_denied)
 
-    // Показ помилок аналізу.
+    // Показ помилок аналізу: конкретний текст від сервера має пріоритет.
     state.errorRes?.let { res ->
-        val message = stringResource(res)
+        val fallback = stringResource(res)
+        val message = state.errorMessage ?: fallback
         LaunchedEffect(res, message) {
-            snackbarHostState.showSnackbar(message)
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = androidx.compose.material3.SnackbarDuration.Long
+            )
             viewModel.errorShown()
         }
     }
