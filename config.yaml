@@ -97,3 +97,22 @@ simulator:
     adverse_bps_per_100ms: 0.5  # spread decay during the gap -> worse effective entry
     one_leg_fill_prob: 0.02     # chance leg-2 never fills -> emergency close leg-1 at a loss
     seed: 42                    # RNG seed for reproducible paper runs
+
+# Phase 3 — live executor (run with: python main.py live).
+# DEFAULT IS DRY_RUN: it logs intended orders and simulates fills, places NOTHING
+# real. Real trading needs BOTH live_trading: true AND typing LIVE at the prompt.
+live:
+  live_trading: false          # MASTER SWITCH. Keep false until you have tested extensively.
+  require_confirmation: true    # interactive "type LIVE" gate when live_trading is true
+  position_mode: one-way        # one-way | hedge  (set explicitly per exchange, not defaulted)
+  margin_mode: isolated         # isolated | cross
+  leg_fill_timeout_ms: 3000     # if the 2nd leg is not filled within this -> emergency close leg-1
+  entry_net_spread_bps: 40      # only act on signals wider than this (above the scanner's 35)
+  max_hold_seconds: 3600        # force-close after this long
+  poll_interval_seconds: 5
+  # DRY_RUN-only knobs to exercise the safety paths without a real venue:
+  dry_run_slippage_bps: 1       # simulated taker slippage on fills
+  dry_run_one_leg_fail_prob: 0  # set e.g. 0.3 to force one-leg-fills -> emergency close path
+  exit:
+    convergence_bps: 5          # take profit when the spread narrows to <= this
+    stop_adverse_bps: 25        # stop out when it widens this much beyond entry

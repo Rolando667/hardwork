@@ -6,10 +6,10 @@ Phase 1 (P0): read-only cross-exchange perp spread scanner. No keys, no orders.
     python main.py path/to.yaml    # console scanner, specific config
     python main.py web             # Phase 1 read-only web dashboard (same data)
     python main.py sim             # Phase 2 paper simulator (virtual trades only)
-    python main.py sim path/to.yaml
+    python main.py live            # Phase 3 executor (DRY_RUN unless config+confirm)
 
-Richer CLI flags and per-strategy selection arrive later. The phase is read from
-config; Phases 1 (scan/web) and 2 (sim) are implemented.
+Richer CLI flags and per-strategy selection arrive later. Phases 1 (scan/web),
+2 (sim) and 3 (live, DRY_RUN by default) are implemented.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from arb_bot.scanner.scanner import scan
 def main(argv: list[str]) -> int:
     args = argv[1:]
     mode = "console"
-    if args and args[0] in ("web", "sim"):
+    if args and args[0] in ("web", "sim", "live"):
         mode, args = args[0], args[1:]
     config_path = args[0] if args else "config.yaml"
 
@@ -49,6 +49,11 @@ def main(argv: list[str]) -> int:
         from arb_bot.simulator.paper import run_paper
 
         return run_paper(cfg)
+
+    if mode == "live":
+        from arb_bot.executor.live import run_live
+
+        return run_live(cfg)
 
     log.info("Phase 1 (P0) scanner — read-only, no keys. exchanges=%s", cfg.exchanges)
     clients = build_exchanges(cfg)

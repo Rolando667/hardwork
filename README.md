@@ -3,10 +3,12 @@
 Cross-exchange spread arbitrage on crypto **perpetual futures**, built strictly
 phase by phase: **scanner (read-only) → simulator (paper) → guarded live**.
 
-> **Status: Phase 1 (P0) + Phase 2 (P0).** The repository contains the read-only
-> scanner (Phase 1) and the paper simulator (Phase 2). There are still **no API
-> keys, no orders, and no real trading** — the simulator trades virtually. Phase 3
-> (guarded live execution) is deliberately not built yet.
+> **Status: Phase 1 (P0) + Phase 2 (P0) + Phase 3 (P0).** The repository contains
+> the read-only scanner (Phase 1), the paper simulator (Phase 2), and the live
+> executor's safety core (Phase 3). The executor is **DRY_RUN by default and
+> places no real orders** — real trading requires both `live.live_trading: true`
+> and typing `LIVE` at an interactive prompt. Without keys and confirmation there
+> is no path to a live order.
 
 The bot supports (by design) three pluggable strategies on shared
 infrastructure — cross-exchange perp-perp spread (the main one), funding-rate
@@ -116,8 +118,10 @@ arb_bot/
   scanner/   universe.py, scanner.py (collect_market_data/build_opportunities/scan), report.py
   web/       server.py (stdlib dashboard), serialize.py, static/index.html
   simulator/ paper.py (loop), legging.py, pnl.py, journal.py, models.py   # Phase 2
+  executor/  live.py (loop+gate), execution.py (atomic), state_machine.py,  # Phase 3
+             broker.py (DryRun/Ccxt), reduce_only.py, reconciliation.py, kill_switch.py
 logs/                   # paper_trades.jsonl journal lands here
-tests/                  # unit tests land here in P1
+tests/                  # unit tests: reduce_only, atomicity, fees/sizing/pnl
 ```
 
 ---
@@ -238,6 +242,61 @@ over minutes–hours, a short run mostly shows opens and timeouts; lower
 legging/one-leg/funding-timing risk models, reusing the flat-slippage cost model
 from Phase 1. Real L2-depth slippage, the full statistics summary + equity curve,
 and unit tests are the Phase 2 P1 follow-ups.
+
+## Phase 3 — live executor (DRY_RUN by default)
+
+`python main.py live` runs the execution safety core. **It is DRY_RUN unless you
+set `live.live_trading: true` AND type `LIVE` at the startup prompt** — otherwise
+it logs intended orders and simulates fills, placing nothing real. Execution is
+fully deterministic; there is **no LLM in the trading loop**.
+
+What Phase 3 P0 provides (the safety core, all in `executor/`):
+
+- **Explicit state machine** (`state_machine.py`): `IDLE → OPENING_LEG_1 →
+  OPENING_LEG_2 → OPEN → CLOSING → FLAT`, with `RECOVERY` and `EMERGENCY_CLOSE`
+  branches. Every transition is validated; illegal jumps raise instead of leaving
+  an ambiguous state.
+- **Two-leg atomicity** (`execution.py`): both legs are submitted in parallel; if
+  one fills and the other does not within `leg_fill_timeout_ms`, the filled leg is
+  **immediately closed reduce-only** — the bot never stays directionally exposed.
+  Every order carries a `clientOrderId` for idempotency (a retry/reconnect can't
+  double-fill).
+- **Per-exchange reduce-only / position-side params** (`reduce_only.py`): the
+  concrete Binance / Bybit / OKX quirks (camelCase `reduceOnly`; Binance hedge
+  `positionSide` UPPERCASE with no reduceOnly; Bybit integer `positionIdx`; OKX
+  lowercase `posSide`), unit-tested to exact dicts.
+- **DRY_RUN broker** (`broker.py`): simulates fills against live quotes and can
+  force a leg to not fill, to exercise the emergency-close path. A structural
+  `CcxtBroker` implements the real path (used only once live is confirmed).
+- **Kill switch** (`kill_switch.py`): reduce-only flatten of every held leg,
+  manual or on anomaly.
+- **Reconciliation** (`reconciliation.py`): on startup and after any error, fetch
+  real positions and compare to memory before continuing — process memory is not
+  trusted after a crash/reconnect.
+
+Position/margin mode are set explicitly in config (`position_mode`,
+`margin_mode`), never left to the account default. To see the executor work in
+DRY_RUN, lower `live.entry_net_spread_bps` so it opens on the (mostly negative-net)
+spreads these venues show, and set `dry_run_one_leg_fail_prob > 0` to watch the
+emergency-close path.
+
+**Phase 3 scope note (P0):** this is the safety core only. The remaining
+safeguards are P1/P2 and NOT yet built: per-trade/total position-size limits,
+daily-loss/max-drawdown kill, balance/margin pre-checks, post-only re-quote
+logic, connectivity-degradation safe mode, price sanity checks, and Telegram
+alerts. **Do not run this live** until those are in place and you have tested
+extensively in DRY_RUN. Recommended rollout order (safest first): spot-perp on a
+single exchange, then cross-exchange perp-perp.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Covers the critical logic: per-exchange reduce-only params, two-leg atomicity
+(one-leg-fill → emergency close → flat, on either leg), the state machine, the
+cost engine, symmetric sizing, and simulator P&L / event-based funding.
 
 ## Limitations & risks (read this)
 

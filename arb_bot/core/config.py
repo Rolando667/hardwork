@@ -101,6 +101,29 @@ class SimulatorConfig:
 
 
 @dataclass(frozen=True)
+class LiveExitConfig:
+    convergence_bps: float = 5.0
+    stop_adverse_bps: float = 25.0
+
+
+@dataclass(frozen=True)
+class LiveConfig:
+    # MASTER SWITCH. false => DRY_RUN: log intended orders, place nothing real.
+    live_trading: bool = False
+    require_confirmation: bool = True   # interactive "type LIVE" gate at startup when live
+    position_mode: str = "one-way"      # one-way | hedge  (set explicitly, per exchange)
+    margin_mode: str = "isolated"       # isolated | cross
+    leg_fill_timeout_ms: float = 3000.0  # 2nd leg must fill within this or leg-1 is unwound
+    entry_net_spread_bps: float = 40.0   # only act on signals wider than this
+    max_hold_seconds: float = 3600.0
+    poll_interval_seconds: float = 5.0
+    # DRY_RUN simulation knobs (exercise the safety paths without a real venue):
+    dry_run_slippage_bps: float = 1.0
+    dry_run_one_leg_fail_prob: float = 0.0  # set >0 to force the emergency-close path
+    exit: LiveExitConfig = field(default_factory=LiveExitConfig)
+
+
+@dataclass(frozen=True)
 class Config:
     phase: str
     strategy: str
@@ -113,6 +136,7 @@ class Config:
     runtime: RuntimeConfig
     web: WebConfig
     simulator: SimulatorConfig
+    live: LiveConfig
 
 
 def load_config(path: str | Path = "config.yaml") -> Config:
@@ -145,6 +169,14 @@ def load_config(path: str | Path = "config.yaml") -> Config:
     legging_cfg = SimLeggingConfig(**(sim_raw.pop("legging", {}) or {}))
     simulator = SimulatorConfig(exit=exit_cfg, legging=legging_cfg, **sim_raw)
 
+    live_raw = _section(raw, "live")
+    live_exit = LiveExitConfig(**(live_raw.pop("exit", {}) or {}))
+    live = LiveConfig(exit=live_exit, **live_raw)
+    if live.position_mode not in ("one-way", "hedge"):
+        raise ValueError("live.position_mode must be 'one-way' or 'hedge'")
+    if live.margin_mode not in ("isolated", "cross"):
+        raise ValueError("live.margin_mode must be 'isolated' or 'cross'")
+
     cfg = Config(
         phase=str(raw.get("phase", "p0")),
         strategy=str(raw.get("strategy", "cross_exchange_spread")),
@@ -157,6 +189,7 @@ def load_config(path: str | Path = "config.yaml") -> Config:
         runtime=RuntimeConfig(**_section(raw, "runtime")),
         web=WebConfig(**_section(raw, "web")),
         simulator=simulator,
+        live=live,
     )
 
     # Allow env to override the log level for quick debugging without editing yaml.
