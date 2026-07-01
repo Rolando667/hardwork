@@ -1,0 +1,25 @@
+# SECRETS — never commit
+.env
+.env.*
+!.env.example
+
+# databases / state
+*.db
+*.db-wal
+*.db-shm
+gridbot.db*
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# node (reference harness only uses stdlib; nothing to install)
+node_modules/
+
+# os / editor
+.DS_Store
+*.log

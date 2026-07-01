@@ -1,0 +1,21 @@
+# Self-hosted, single service. Secrets come from the .env file (gitignored),
+# which is loaded server-side only. State (SQLite) is persisted to a named volume.
+services:
+  gridbot:
+    build: .
+    image: spot-grid-bot
+    container_name: spot-grid-bot
+    env_file:
+      - .env
+    environment:
+      # keep state on the mounted volume regardless of .env
+      DB_PATH: /data/gridbot.db
+    ports:
+      # expose only on localhost by default — do not bind 0.0.0.0 on a public host
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - gridbot-data:/data
+    restart: unless-stopped
+
+volumes:
+  gridbot-data:

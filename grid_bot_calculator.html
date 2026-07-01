@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spot Grid Bot Calculator — SOL/USDT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e15;
+  --bg-2:#0d121b;
+  --panel:#10151f;
+  --panel-2:#131a26;
+  --panel-hi:#172131;
+  --line:#1c2533;
+  --line-2:#222d3d;
+  --txt:#e9edf4;
+  --txt-2:#8b97a8;
+  --txt-3:#5b6677;
+  --gold:#f0b90b;
+  --gold-dim:#3a3008;
+  --green:#16c784;
+  --green-2:#0ecb81;
+  --red:#ea3943;
+  --red-2:#f6465d;
+  --blue:#4f9cf9;
+  --blue-2:#3b82f6;
+  --radius:10px;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(240,185,11,.05), transparent 60%),
+    radial-gradient(900px 500px at -5% 110%, rgba(79,156,249,.05), transparent 60%),
+    var(--bg);
+  color:var(--txt);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:13px;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pos{color:var(--green)}
+.neg{color:var(--red)}
+.muted{color:var(--txt-2)}
+button{font-family:inherit;cursor:pointer;color:var(--txt);border:none;background:none}
+input{font-family:inherit;color:var(--txt)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#1f2a3a;border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:#2a3a4d}
+
+/* ---------- Header ---------- */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 20px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.015),transparent);
+}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-ico{
+  width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--gold),#b88908);
+  color:#1a1405;font-size:17px;box-shadow:0 4px 16px rgba(240,185,11,.25)
+}
+.brand h1{font-size:17px;font-weight:800;letter-spacing:-.4px}
+.brand p{color:var(--txt-2);font-size:10.5px;margin-top:1px}
+.brand p b{color:var(--gold)}
+.header-right{display:flex;align-items:center;gap:10px}
+.pill{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9px;
+  border:1px solid var(--line-2);background:var(--panel);font-size:12px;font-weight:600
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,199,132,.6);animation:pulse 1.6s infinite}
+.live-dot.sim{background:var(--gold);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,199,132,.5)}70%{box-shadow:0 0 0 7px rgba(22,199,132,0)}100%{box-shadow:0 0 0 0 rgba(22,199,132,0)}}
+.pill .cur{color:var(--blue);font-family:var(--mono);font-weight:700}
+
+/* ---------- Layout ---------- */
+.app{
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr) 344px;
+  gap:11px;padding:11px;align-items:stretch;
+  height:calc(100vh - 52px);overflow:hidden;
+}
+.col{display:flex;flex-direction:column;gap:11px;height:100%;min-height:0}
+.col-left,.col-right{overflow-y:auto;overflow-x:hidden;padding-right:3px;scrollbar-width:thin}
+.col-center{overflow:hidden}
+.col-center>.statbar{flex:0 0 auto}
+.col-center>.chart-panel{flex:1 1 auto;min-height:280px;display:flex;flex-direction:column;overflow:hidden}
+.col-center>.center-grid{flex:0 0 auto;height:clamp(186px,23vh,280px);min-height:0}
+@media(max-width:1280px){
+  body{overflow:auto}
+  .app{grid-template-columns:280px minmax(0,1fr);height:auto;overflow:visible}
+  .col,.col-left,.col-right{height:auto;overflow:visible}
+  .col-center>.chart-panel{height:560px}
+  .col-center>.center-grid{height:auto}
+  .col-right{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+}
+@media(max-width:860px){.app{grid-template-columns:1fr}.col-right{grid-template-columns:1fr}}
+
+.panel{
+  background:linear-gradient(180deg,var(--panel),var(--bg-2));
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px;
+}
+.panel-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:11px}
+.panel-title .ic{font-size:15px}
+.section-head{font-size:20px;font-weight:800;letter-spacing:-.4px;margin:2px 0 2px 2px}
+
+/* ---------- Form controls ---------- */
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+.field-label{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--txt);margin-bottom:8px}
+.field-label .num{color:var(--txt-2);margin-right:5px}
+.field-sub{font-size:11px;color:var(--txt-2);display:flex;justify-content:space-between;margin-top:7px}
+.clear-btn{font-size:11px;color:var(--txt-2);display:flex;align-items:center;gap:4px}
+.clear-btn:hover{color:var(--red)}
+
+.inp{
+  width:100%;background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:8px;padding:10px 12px;font-size:13px;font-family:var(--mono);
+  transition:border-color .15s,box-shadow .15s
+}
+.inp:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,185,11,.1)}
+.inp::placeholder{color:var(--txt-3)}
+.row2{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.row2 .dash{color:var(--txt-3)}
+.inp-suffix{position:relative}
+.inp-suffix .sfx{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt-3);font-size:12px;font-family:var(--mono);pointer-events:none}
+
+.select-wrap{position:relative}
+.select-wrap select{
+  width:100%;appearance:none;background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:8px;padding:10px 34px 10px 12px;font-size:13px;color:var(--txt);cursor:pointer
+}
+.select-wrap select:focus{outline:none;border-color:var(--gold)}
+.select-wrap::after{content:'▾';position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt-2);pointer-events:none}
+
+/* slider */
+.slider{width:100%;-webkit-appearance:none;height:5px;border-radius:5px;background:var(--line-2);outline:none;margin-top:4px}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--gold);cursor:pointer;border:3px solid #1a1405;box-shadow:0 0 0 1px var(--gold);margin-top:-6px}
+.slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer;border:3px solid #1a1405}
+.slider.diamond::-webkit-slider-thumb{border-radius:3px;transform:rotate(45deg)}
+
+/* segmented */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;background:var(--bg-2);padding:5px;border-radius:9px;border:1px solid var(--line-2)}
+.seg button{padding:8px 6px;border-radius:6px;font-size:12px;font-weight:600;color:var(--txt-2);transition:.15s}
+.seg button.on{background:var(--gold);color:#1a1405}
+.seg.subtle button.on{background:var(--panel-hi);color:var(--gold)}
+
+.fee-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.fee-grid button{padding:9px;border:1px solid var(--line-2);border-radius:8px;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--txt-2)}
+.fee-grid button.on{border-color:var(--gold);color:var(--gold);background:rgba(240,185,11,.08)}
+
+/* date inputs */
+.dt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dt-grid label{font-size:11px;color:var(--txt-2);display:block;margin-bottom:6px}
+.dt-grid input{width:100%;background:var(--bg-2);border:1px solid var(--line-2);border-radius:8px;padding:9px 10px;font-size:12px;font-family:var(--mono);color:var(--txt);color-scheme:dark}
+.dt-grid input:focus{outline:none;border-color:var(--gold)}
+.duration{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.duration .v{color:var(--blue);font-weight:700;font-family:var(--mono)}
+
+
+/* ---------- Stats bar ---------- */
+.statbar{
+  display:grid;grid-template-columns:repeat(11,minmax(0,1fr));
+  background:linear-gradient(180deg,var(--panel),var(--bg-2));
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+}
+.stat{padding:9px 10px;border-right:1px solid var(--line);min-width:0}
+.stat:last-child{border-right:none}
+.stat .k{font-size:10px;color:var(--txt-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v{font-size:12.5px;font-weight:700;font-family:var(--mono);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v small{font-size:10.5px;font-weight:600;opacity:.85}
+@media(max-width:1280px){.statbar{grid-template-columns:repeat(6,1fr)}.stat:nth-child(6n){border-right:none}}
+@media(max-width:760px){.statbar{grid-template-columns:repeat(3,1fr)}}
+
+/* ---------- Chart ---------- */
+.chart-panel{padding:0;overflow:hidden}
+.chart-top{display:flex;align-items:center;gap:18px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sym{display:flex;align-items:center;gap:8px;font-weight:700}
+.sym .ic{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#9945ff,#14f195);display:inline-block}
+.bigprice{font-family:var(--mono);font-size:18px;font-weight:700}
+.chgbox{font-family:var(--mono);font-size:12px}
+.hl{display:flex;gap:14px;font-size:11px;color:var(--txt-2)}
+.hl b{color:var(--txt);font-family:var(--mono);margin-left:4px}
+.tf-seg{display:flex;gap:3px;margin-left:auto;background:var(--bg-2);padding:4px;border-radius:8px;border:1px solid var(--line-2)}
+.tf-seg button{padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;color:var(--txt-2);font-family:var(--mono)}
+.tf-seg button.on{background:var(--panel-hi);color:var(--gold)}
+.chart-tools{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.toggle{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt-2);cursor:pointer;user-select:none;padding:4px 8px;border-radius:7px;border:1px solid transparent}
+.toggle:hover{background:var(--bg-2)}
+.toggle input{display:none}
+.tg-track{width:30px;height:17px;border-radius:10px;background:var(--line-2);position:relative;transition:.18s;flex:none}
+.tg-track::after{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:#6b778a;top:2px;left:2px;transition:.18s}
+.toggle input:checked+.tg-track{background:var(--gold)}
+.toggle input:checked+.tg-track::after{left:15px;background:#1a1405}
+.toggle.green input:checked+.tg-track{background:var(--green)}
+.toggle.green input:checked+.tg-track::after{background:#06281c}
+.ohlc{font-family:var(--mono);font-size:11px;color:var(--txt-2);padding:6px 12px;border-bottom:1px solid var(--line);display:flex;gap:13px;flex-wrap:wrap;min-height:28px}
+.ohlc b{margin-left:4px}
+.chart-host{position:relative;width:100%;flex:1 1 auto;min-height:260px;touch-action:none}
+.chart-host canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.chart-hint{position:absolute;left:12px;bottom:38px;font-size:10.5px;color:var(--txt-3);background:rgba(10,14,21,.6);padding:4px 8px;border-radius:6px;pointer-events:none}
+.scen-legend{position:absolute;left:10px;right:auto;top:10px;display:flex;flex-direction:column;gap:5px;font-size:10.5px}
+.scen-legend.hidden{display:none}
+.scen-legend div{display:flex;align-items:center;gap:6px;background:rgba(10,14,21,.55);padding:3px 8px;border-radius:6px}
+.scen-legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+
+/* ---------- Right column panels ---------- */
+.kv{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.035);font-size:12px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--txt-2)}
+.kv .v{font-family:var(--mono);font-weight:600}
+
+.bar-row{margin:11px 0}
+.bar-row .top{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:6px}
+.bar-row .top .lab{color:var(--txt-2);display:flex;align-items:center;gap:6px}
+.bar-row .top .lab i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.bar-row .top .val{font-family:var(--mono);font-weight:600}
+.bar-track{height:6px;border-radius:4px;background:var(--bg-2);overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.reco{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--txt-2);line-height:1.55}
+.reco b{color:var(--gold)}
+
+.range-strip{margin-top:6px}
+.range-strip .lab{font-size:18px;font-weight:800;font-family:var(--mono);margin-bottom:10px}
+.range-bar{height:8px;border-radius:5px;display:flex;overflow:hidden}
+.range-bar .g{background:var(--green)}
+.range-bar .r{background:var(--red)}
+.range-bar .o{background:var(--txt-3)}
+.range-foot{display:flex;justify-content:space-between;font-size:10.5px;color:var(--txt-2);margin-top:6px}
+
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}
+.mini-cell{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 8px;min-width:0;overflow:hidden}
+.mini-cell .k{font-size:9px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-cell .v{font-size:12.5px;font-weight:700;font-family:var(--mono);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.mini-cell .s{font-size:9px;color:var(--txt-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Optimization table ---------- */
+.opt-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.opt-head h3{font-size:14px;font-weight:700}
+table.opt{width:100%;border-collapse:collapse;font-size:12px}
+table.opt th{text-align:right;color:var(--txt-2);font-weight:500;font-size:10.5px;padding:7px 8px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;background:var(--panel);z-index:2}
+table.opt th:first-child{text-align:left}
+table.opt td{text-align:right;padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono)}
+table.opt td:first-child{text-align:left}
+table.opt tr{cursor:pointer;transition:background .12s}
+table.opt tbody tr:hover{background:var(--panel-hi)}
+table.opt tr.best{background:rgba(240,185,11,.04)}
+.tag-best{display:inline-block;font-size:9px;font-weight:700;background:var(--blue);color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;font-family:'Inter'}
+.cfg-mode{color:var(--txt-2);font-size:10.5px}
+
+/* history */
+.hist-head{display:flex;gap:16px;align-items:center;font-size:12px;margin-bottom:12px}
+.hist-head .gp{color:var(--green);font-weight:600;font-family:var(--mono)}
+.hist-list{max-height:230px;overflow:auto}
+table.hist{width:100%;border-collapse:collapse;font-size:11.5px}
+table.hist th{text-align:right;color:var(--txt-2);font-weight:500;font-size:10px;padding:7px 6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+table.hist th:first-child{text-align:left}
+table.hist td{text-align:right;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono)}
+table.hist td:first-child{text-align:left}
+.side-buy{color:var(--green);font-weight:600}
+.side-sell{color:var(--red);font-weight:600}
+
+.center-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:11px;align-items:stretch;height:100%;min-height:0}
+@media(max-width:1100px){.center-grid{grid-template-columns:1fr}}
+
+.spark{width:100%;height:100%;display:block}
+.empty{color:var(--txt-3);font-size:12px;text-align:center;padding:24px}
+.flash{animation:flash .5s}
+@keyframes flash{0%{color:var(--gold)}100%{}}
+
+/* ---- dual price-range sliders ---- */
+.range-slider-block{margin-top:12px}
+.rs-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.rs-row .slider{margin-top:0}
+.rs-row .slider.sl-low::-webkit-slider-thumb{background:var(--green);box-shadow:0 0 0 1px var(--green)}
+.rs-row .slider.sl-low::-moz-range-thumb{background:var(--green)}
+.rs-row .slider.sl-high::-webkit-slider-thumb{background:var(--red);box-shadow:0 0 0 1px var(--red)}
+.rs-row .slider.sl-high::-moz-range-thumb{background:var(--red)}
+.rs-tag{font-family:var(--mono);font-size:11px;min-width:52px;text-align:right;color:var(--txt-2)}
+
+/* ---- chart sub note + grid-data badge ---- */
+.chart-subnote{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 14px;border-bottom:1px solid var(--line);font-size:10.5px;flex-wrap:wrap}
+.chart-subnote .muted{line-height:1.4}
+.grid-data-badge{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--gold);background:rgba(240,185,11,.08);border:1px solid rgba(240,185,11,.25);padding:3px 9px;border-radius:6px;white-space:nowrap;flex:none}
+.sim-warn{display:flex;gap:9px;align-items:flex-start;margin-bottom:9px;padding:9px 12px;border-radius:9px;
+  background:rgba(234,57,67,.09);border:1px solid rgba(234,57,67,.32);color:var(--txt-2);font-size:11.5px;line-height:1.5}
+.sim-warn .sw-ic{font-size:14px;line-height:1.2;flex:none}
+.sim-warn b{color:var(--txt)}
+.grid-data-badge.sim{color:var(--gold);border-color:rgba(240,185,11,.25)}
+.grid-data-badge.loading{color:var(--blue);border-color:rgba(79,156,249,.3);background:rgba(79,156,249,.08)}
+
+/* ---- optimization auto badge + equal-height panels ---- */
+.auto-badge{font-size:10px;font-weight:600;color:var(--green);margin-left:6px;font-family:var(--mono);vertical-align:middle}
+.auto-badge.busy{color:var(--gold)}
+.eqpanel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.eqpanel .opt-head{flex:0 0 auto}
+.eqpanel .hist-head{flex:0 0 auto}
+.opt-scroll{flex:1 1 auto;overflow:auto;min-height:0;scrollbar-width:thin}
+.eqpanel .hist-list{flex:1 1 auto;max-height:none;min-height:0;overflow:auto;scrollbar-width:thin}
+
+/* ---- time in range hoverable bar ---- */
+.range-strip{position:relative}
+.range-bar{cursor:default}
+.range-bar>div{transition:filter .12s}
+.range-bar>div:hover{filter:brightness(1.35)}
+.tir-info{font-family:var(--mono);font-size:10.5px;color:var(--txt-2);font-weight:600;white-space:nowrap;text-align:right}
+.tir-info b{font-weight:700;color:var(--txt)}
+.tir-info b.g{color:var(--green)} .tir-info b.r{color:var(--red)} .tir-info b.o{color:var(--txt-3)}
+.tir-info.active{color:var(--txt)}
+.range-foot .dot{width:8px;height:8px;border-radius:50%;display:inline-block;vertical-align:middle;margin:0 5px}
+.range-foot .dot.g{background:var(--green)}
+.range-foot .dot.r{background:var(--red)}
+
+/* ---- PnL spark wrapper (fixes overlap) ---- */
+.pnl-spark{position:relative;width:100%;height:118px;overflow:hidden;border-radius:8px}
+.pnl-panel{transition:background .25s,border-color .25s,box-shadow .25s}
+.pnl-panel.pos{border-color:rgba(22,199,132,.4);background:linear-gradient(180deg,rgba(22,199,132,.10),var(--bg-2));box-shadow:0 0 0 1px rgba(22,199,132,.12),0 0 22px -8px rgba(22,199,132,.45)}
+.pnl-panel.neg{border-color:rgba(234,57,67,.4);background:linear-gradient(180deg,rgba(234,57,67,.10),var(--bg-2));box-shadow:0 0 0 1px rgba(234,57,67,.12),0 0 22px -8px rgba(234,57,67,.45)}
+.spark-val{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:13px;padding:2px 9px;border-radius:6px;background:var(--bg-2);border:1px solid var(--line-2);color:var(--txt-2);min-width:74px;text-align:right}
+.spark-val.pos{color:var(--green);border-color:rgba(22,199,132,.4)}
+.spark-val.neg{color:var(--red);border-color:rgba(234,57,67,.4)}
+
+/* ---- coin selector ---- */
+.coin-sel{display:flex;align-items:center;gap:8px}
+.coin-sel .ic{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#9945ff,#14f195);display:inline-block;flex:none}
+.select-wrap.sm select{padding:6px 30px 6px 10px;font-size:13px;font-weight:700;font-family:'Inter';border-radius:7px}
+.select-wrap.sm::after{right:10px;font-size:11px}
+
+/* ---- selectable scenario legend ---- */
+.scen-legend{position:absolute;left:10px;right:auto;top:10px;display:flex;flex-direction:column;gap:5px;font-size:10.5px;align-items:stretch;background:rgba(8,12,19,.72);padding:8px;border-radius:9px;border:1px solid var(--line-2);backdrop-filter:blur(3px)}
+.scen-legend.hidden{display:none}
+.scen-title{color:var(--txt-2);font-size:9.5px;margin-bottom:2px;max-width:160px;line-height:1.3}
+.scen-opt{display:flex;align-items:center;gap:7px;padding:5px 9px;border-radius:6px;font-size:10.5px;color:var(--txt-2);border:1px solid transparent;text-align:left;transition:.12s}
+.scen-opt:hover{background:rgba(255,255,255,.05)}
+.scen-opt i{width:14px;height:3px;border-radius:2px;display:inline-block;flex:none}
+.scen-opt.on{background:var(--panel-hi);color:var(--txt);border-color:var(--line-2);font-weight:600}
+.scen-none{color:var(--txt-3);font-size:10px;margin-top:1px}
+
+/* ---- forecast lab panel ---- */
+.fc-state{font-size:11px;color:var(--txt-2);line-height:1.5}
+.fc-state b{color:var(--gold)}
+.fc-panel.active .fc-state{display:none}
+.fc-body{display:none}
+.fc-panel.active .fc-body{display:block}
+.fc-presets button{padding:7px 4px;font-family:var(--mono)}
+.fc-sel-row{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px}
+.fc-sel-row .muted{color:var(--txt-2)}
+.fc-sel-badge{font-family:'Inter';font-weight:700;font-size:11px;padding:3px 10px;border-radius:6px}
+.fc-sel-badge.none{color:var(--txt-3);background:var(--bg-2);border:1px solid var(--line-2)}
+.fc-sel-badge.optimistic{color:#06281c;background:var(--green)}
+.fc-sel-badge.neutral{color:#06182e;background:var(--blue)}
+.fc-sel-badge.bearish{color:#2a0608;background:var(--red)}
+.fc-reseed{width:100%;margin-top:12px;padding:9px;border-radius:8px;font-size:12px;font-weight:600;color:var(--txt-2);border:1px solid var(--line-2);background:var(--bg-2)}
+.fc-reseed:hover{color:var(--txt);border-color:var(--gold)}
+
+/* ---- mini checkbox (entry enable) ---- */
+.mini-check{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-weight:600}
+.mini-check input{display:none}
+.mc-box{width:15px;height:15px;border-radius:4px;border:1px solid var(--line-2);background:var(--bg-2);flex:none;position:relative;transition:.15s}
+.mini-check input:checked+.mc-box{background:var(--gold);border-color:var(--gold)}
+.mini-check input:checked+.mc-box::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#1a1405;font-size:10px;font-weight:800}
+.inp:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---- order hover tooltip ---- */
+.order-tip{position:absolute;z-index:30;pointer-events:none;display:none;min-width:150px;
+  background:rgba(13,18,28,.93);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);font-size:11px;line-height:1.5}
+.order-tip.show{display:block}
+.order-tip .ot-h{font-weight:700;font-size:11px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.order-tip .ot-h .dot{width:8px;height:8px;border-radius:50%}
+.order-tip .ot-r{display:flex;justify-content:space-between;gap:14px;color:var(--txt-2)}
+.order-tip .ot-r b{color:var(--txt);font-family:var(--mono);font-weight:600}
+.kv.st-sep{margin-top:7px;padding-top:9px;border-top:1px solid var(--line)}
+.opt-info{cursor:help;color:var(--txt-3);font-size:11px;margin-left:4px;border:1px solid var(--line-2);border-radius:50%;padding:0 4px;font-weight:600}
+.opt-info:hover{color:var(--gold);border-color:var(--gold)}
+
+/* ---- dark themed scrollbars for inner panels ---- */
+.opt-scroll,.eqpanel .hist-list,.col-left,.col-right{scrollbar-width:thin;scrollbar-color:#2a3a4d transparent}
+.opt-scroll::-webkit-scrollbar,.eqpanel .hist-list::-webkit-scrollbar{width:8px;height:8px}
+.opt-scroll::-webkit-scrollbar-track,.eqpanel .hist-list::-webkit-scrollbar-track{background:transparent}
+.opt-scroll::-webkit-scrollbar-thumb,.eqpanel .hist-list::-webkit-scrollbar-thumb{background:#243042;border-radius:6px;border:2px solid var(--panel)}
+.opt-scroll::-webkit-scrollbar-thumb:hover,.eqpanel .hist-list::-webkit-scrollbar-thumb:hover{background:#2f3f54}
+
+/* ---- themed slider track (cross-browser) ---- */
+.slider::-webkit-slider-runnable-track{height:5px;border-radius:5px;background:var(--line-2)}
+.slider::-moz-range-track{height:5px;border-radius:5px;background:var(--line-2)}
+.slider::-moz-range-progress{height:5px;border-radius:5px;background:rgba(240,185,11,.5)}
+.rs-row .slider.sl-low::-moz-range-progress{background:rgba(22,199,132,.5)}
+.rs-row .slider.sl-high::-moz-range-progress{background:rgba(234,57,67,.5)}
+
+/* ===== reworked: honesty + walk-forward + monte carlo ===== */
+.unreliable{opacity:.6;text-decoration:underline dotted rgba(255,255,255,.35);cursor:help}
+.apr-warn{font-size:9px;font-weight:700;color:var(--gold);margin-left:5px;border:1px solid rgba(240,185,11,.4);border-radius:4px;padding:0 4px;vertical-align:middle;cursor:help}
+.statbar.simdata{border-color:rgba(234,57,67,.55);animation:simpulse 2s infinite}
+@keyframes simpulse{0%,100%{box-shadow:0 0 0 1px rgba(234,57,67,.22),0 0 16px -8px rgba(234,57,67,.4)}50%{box-shadow:0 0 0 1px rgba(234,57,67,.5),0 0 26px -6px rgba(234,57,67,.7)}}
+.coarse-note{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--gold);background:rgba(240,185,11,.06);border:1px solid rgba(240,185,11,.22);padding:3px 9px;border-radius:6px;white-space:nowrap;flex:none}
+.coarse-note.hidden{display:none}
+
+/* walk-forward toggle + optimizer note */
+.wf-toggle{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--txt-2);cursor:pointer;user-select:none}
+.wf-toggle input{display:none}
+.wf-toggle .tg-track{width:28px;height:16px;border-radius:9px;background:var(--line-2);position:relative;transition:.18s;flex:none}
+.wf-toggle .tg-track::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:#6b778a;top:2px;left:2px;transition:.18s}
+.wf-toggle input:checked+.tg-track{background:var(--gold)}
+.wf-toggle input:checked+.tg-track::after{left:14px;background:#1a1405}
+.opt-note{font-size:10.5px;color:var(--txt-2);line-height:1.45;margin:-2px 0 10px;padding:7px 9px;border-radius:7px;background:rgba(79,156,249,.07);border:1px solid rgba(79,156,249,.22)}
+.opt-note b{color:var(--blue)}
+table.opt td.delta.bad{color:var(--red);font-weight:700}
+table.opt td.delta.ok{color:var(--green)}
+table.opt td.muted{color:var(--txt-3)}
+
+/* monte carlo panel */
+.mc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.mc-run{padding:7px 12px;border-radius:8px;font-size:11.5px;font-weight:700;background:var(--gold);color:#1a1405;border:1px solid var(--gold)}
+.mc-run:hover{filter:brightness(1.08)}
+.mc-run:disabled{opacity:.5;cursor:wait}
+.mc-n{display:flex;gap:4px;background:var(--bg-2);padding:3px;border-radius:7px;border:1px solid var(--line-2)}
+.mc-n button{padding:4px 9px;border-radius:5px;font-size:10.5px;font-weight:600;font-family:var(--mono);color:var(--txt-2)}
+.mc-n button.on{background:var(--panel-hi);color:var(--gold)}
+.mc-state{font-size:11px;color:var(--txt-2);line-height:1.5}
+.mc-state b{color:var(--gold)}
+.mc-stale{font-size:10px;color:var(--gold);margin-left:6px;font-weight:600}
+.mc-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.mc-cell{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:9px 6px;text-align:center;min-width:0;overflow:hidden}
+.mc-cell .k{font-size:9px;color:var(--txt-2);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.mc-cell .v{font-size:13.5px;font-weight:700;font-family:var(--mono);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-cell.p5 .v{color:var(--red)} .mc-cell.p50 .v{color:var(--txt)} .mc-cell.p95 .v{color:var(--green)}
+.mc-row2{display:flex;justify-content:space-between;gap:10px;margin-top:10px;font-size:11.5px}
+.mc-row2 .it{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mc-row2 .it .k{color:var(--txt-2);font-size:10px}
+.mc-row2 .it .v{font-family:var(--mono);font-weight:700}
+.mc-hist{width:100%;height:64px;margin-top:11px;display:block}
+.mc-foot{font-size:10px;color:var(--txt-3);line-height:1.45;margin-top:9px}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-ico">▦</div>
+    <div>
+      <h1>Spot Grid Bot Calculator</h1>
+      <p>Live Binance SOL/USDT data · <b>backtest</b> · auto-optimization · second-precise period</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="pill"><span class="live-dot" id="liveDot"></span><span id="liveText">CONNECTING…</span></div>
+    <div class="pill">Current: <span class="cur" id="curPriceHdr">—</span></div>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ============ LEFT COLUMN ============ -->
+  <div class="col col-left">
+    <div class="section-head">Grid Settings</div>
+
+    <div class="panel">
+      <!-- Price range -->
+      <div class="field">
+        <div class="field-label"><span><span class="num">1.</span>Price Range</span>
+          <button class="clear-btn" id="autoRange">⟳ Auto from chart</button>
+        </div>
+        <div class="row2">
+          <div class="inp-suffix"><input class="inp" id="lower" type="number" step="0.01" value="71"><span class="sfx">low</span></div>
+          <span class="dash">—</span>
+          <div class="inp-suffix"><input class="inp" id="upper" type="number" step="0.01" value="73"><span class="sfx">high</span></div>
+        </div>
+        <div class="range-slider-block">
+          <div class="rs-row">
+            <input type="range" class="slider sl-low" id="lowerSlider" min="0" max="100" step="0.1" value="50">
+            <span class="rs-tag" id="lowerPct">−0%</span>
+          </div>
+          <div class="rs-row">
+            <input type="range" class="slider sl-high" id="upperSlider" min="0" max="100" step="0.1" value="0">
+            <span class="rs-tag" id="upperPct">+0%</span>
+          </div>
+          <div class="field-sub"><span>Low: −50% … current</span><span>High: current … +100%</span></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="field-label"><label class="mini-check"><input type="checkbox" id="entryEnabled"><span class="mc-box"></span>Set entry price <span class="muted" style="font-weight:400">(bot start)</span></label></div>
+          <div class="inp-suffix"><input class="inp" id="entry" type="number" step="0.01" placeholder="current price" disabled><span class="sfx">USDT</span></div>
+          <div class="field-sub"><span>When on, low/high are measured from entry</span></div>
+        </div>
+      </div>
+
+      <!-- grids -->
+      <div class="field">
+        <div class="field-label"><span><span class="num">2.</span>Number of Grids</span><span class="muted mono" id="gridsVal">8</span></div>
+        <div class="row2" style="grid-template-columns:1fr 130px;margin-bottom:8px">
+          <input class="inp" id="grids" type="number" min="2" max="170" value="8">
+          <div class="select-wrap"><select id="mode"><option value="geometric">Geometric</option><option value="arithmetic">Arithmetic</option></select></div>
+        </div>
+        <input type="range" class="slider" id="gridsSlider" min="2" max="170" value="8">
+        <div class="field-sub"><span>Profit / grid (fees deducted)</span><span class="mono" id="profitPerGrid">0.14%</span></div>
+      </div>
+
+      <!-- investment -->
+      <div class="field">
+        <div class="field-label"><span><span class="num">3.</span>Investment</span><span class="muted">USDT</span></div>
+        <div class="inp-suffix"><input class="inp" id="invest" type="number" step="100" value="6000"><span class="sfx">USDT</span></div>
+        <input type="range" class="slider diamond" id="investSlider" min="100" max="100000" step="100" value="6000" style="margin-top:12px">
+        <div class="field-sub"><span>100</span><span>100 000</span></div>
+      </div>
+    </div>
+
+    <!-- trading period -->
+    <div class="panel">
+      <div class="panel-title"><span class="num muted">4.</span> Trading Period</div>
+      <div class="dt-grid">
+        <div><label>Start Date</label><input id="startDate" type="date"></div>
+        <div><label>Start Time</label><input id="startTime" type="time" step="1"></div>
+        <div><label>End Date</label><input id="endDate" type="date"></div>
+        <div><label>End Time</label><input id="endTime" type="time" step="1"></div>
+      </div>
+      <div class="duration"><span class="muted">Duration</span><span class="v" id="durationVal">—</span></div>
+      <div class="field-sub" style="margin-top:8px;line-height:1.5">Drag the <span style="color:var(--green)">green</span>/<span style="color:var(--red)">red</span> lines on the chart, or edit here. Empty end = now.</div>
+    </div>
+
+    <!-- fees -->
+    <div class="panel">
+      <div class="panel-title"><span class="num muted">5.</span> Fees</div>
+      <div class="field-label" style="margin-bottom:6px">Trading Fee (%)</div>
+      <div class="inp-suffix"><input class="inp" id="fee" type="number" step="0.01" value="0.1"><span class="sfx">%</span></div>
+      <div class="fee-grid">
+        <button data-fee="0.05">0.05%</button>
+        <button data-fee="0.1" class="on">0.1%</button>
+        <button data-fee="0.15">0.15%</button>
+      </div>
+      <div class="field" style="margin-top:13px;margin-bottom:0">
+        <div class="field-label"><span>Slippage / spread</span><span class="muted mono" id="slipVal">0 bps</span></div>
+        <div class="inp-suffix"><input class="inp" id="slip" type="number" step="1" min="0" value="0"><span class="sfx">bps</span></div>
+        <div class="field-sub"><span>Per-fill cost on top of fees. 0 = ideal limit fills · ~1–5 bps is realistic for crossing the spread.</span></div>
+      </div>
+      <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--line)">
+        <label class="mini-check"><input type="checkbox" id="sellAllStop" checked><span class="mc-box"></span>Sell all SOL on stop</label>
+        <div class="field-sub"><span>On: market-sell all SOL at stop. Off: keep SOL in spot wallet.</span></div>
+      </div>
+    </div>
+
+    <!-- forecast lab -->
+    <div class="panel fc-panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><span class="ic">🔮</span> Forecast Lab</span>
+        <label class="mini-check" style="font-size:11px;font-weight:600"><input type="checkbox" id="fcAuto"><span class="mc-box"></span>Auto</label>
+      </div>
+      <div class="fc-state" id="fcState">Turn on <b>Forecast mode</b> on the chart to project future price scenarios.</div>
+      <div class="fc-body" id="fcBody">
+        <div class="field-label" style="margin-bottom:7px">Projection horizon</div>
+        <div class="seg subtle fc-presets" id="fcPresets" style="grid-auto-columns:1fr">
+          <button data-h="3600">1H</button>
+          <button data-h="86400" class="on">1D</button>
+          <button data-h="604800">1W</button>
+          <button data-h="2592000">1M</button>
+          <button data-h="7776000">3M</button>
+        </div>
+        <div class="field-sub" style="margin-top:7px"><span>Or drag the <b style="color:var(--red)">END</b> line right into the future</span></div>
+
+        <div class="fc-auto-note" id="fcAutoNote" style="display:none;margin-top:14px;padding:9px 11px;border-radius:8px;background:rgba(79,156,249,.08);border:1px solid rgba(79,156,249,.28);font-size:11px;line-height:1.5;color:var(--txt-2)">
+          <b style="color:var(--blue)">Auto mode.</b> Scenarios are derived from the last 6 months of real volatility &amp; drift. <span id="fcAutoStats" class="mono"></span>
+        </div>
+
+        <div id="fcManual">
+          <div class="field" style="margin-top:16px">
+            <div class="field-label"><span>Volatility ×</span><span class="muted mono" id="fcVolVal">1.0×</span></div>
+            <input type="range" class="slider" id="fcVol" min="0.1" max="1.5" step="0.1" value="1">
+          </div>
+          <div class="field">
+            <div class="field-label"><span>Scenario spread</span><span class="muted mono" id="fcSpreadVal">5%</span></div>
+            <input type="range" class="slider" id="fcSpread" min="1" max="10" step="1" value="5">
+            <div class="field-sub"><span>how far optimistic/bearish diverge</span></div>
+          </div>
+          <div class="field" style="margin-bottom:6px">
+            <div class="field-label"><span>Momentum / choppiness</span><span class="muted mono" id="fcTrendVal">0.5</span></div>
+            <input type="range" class="slider" id="fcTrend" min="0" max="1" step="0.05" value="0.5">
+            <div class="field-sub"><span>0 = jagged random walk · 1 = smooth trending moves</span></div>
+          </div>
+        </div>
+
+        <div class="fc-sel-row">
+          <span class="muted">Active scenario</span>
+          <span class="fc-sel-badge none" id="fcSelBadge">None</span>
+        </div>
+        <button class="fc-reseed" id="reseed2">🎲 Reseed paths</button>
+        <div class="field-sub" style="margin-top:9px;line-height:1.5">Select one scenario (on the chart or in its legend) to include the projected move in grid metrics. With none selected, only real data counts.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ CENTER COLUMN ============ -->
+  <div class="col col-center">
+
+    <div class="sim-warn" id="simWarn" style="display:none">
+      <span class="sw-ic">⚠️</span>
+      <span><b>Simulated data.</b> Binance market data isn't reachable here, so prices are synthetic — Grid Profit, Floating &amp; Total will <b>not</b> match a real bot. Open this file where Binance is accessible (badge turns <span style="color:var(--green)">real</span>) for accurate numbers.</span>
+    </div>
+
+    <div class="statbar" id="statbar"></div>
+
+    <div class="panel chart-panel">
+      <div class="chart-top">
+        <div class="coin-sel">
+          <span class="ic" id="coinIco"></span>
+          <div class="select-wrap sm">
+            <select id="coinSelect">
+              <option value="BTCUSDT">BTC/USDT</option>
+              <option value="ETHUSDT">ETH/USDT</option>
+              <option value="BNBUSDT">BNB/USDT</option>
+              <option value="SOLUSDT" selected>SOL/USDT</option>
+              <option value="XRPUSDT">XRP/USDT</option>
+              <option value="ADAUSDT">ADA/USDT</option>
+              <option value="DOGEUSDT">DOGE/USDT</option>
+              <option value="TRXUSDT">TRX/USDT</option>
+              <option value="AVAXUSDT">AVAX/USDT</option>
+              <option value="LINKUSDT">LINK/USDT</option>
+            </select>
+          </div>
+        </div>
+        <div class="bigprice" id="bigPrice">—</div>
+        <div class="chgbox" id="chgBox">—</div>
+        <div class="hl">
+          <span>24h H<b id="h24">—</b></span>
+          <span>24h L<b id="l24">—</b></span>
+        </div>
+        <div class="tf-seg" id="tfSeg">
+          <button data-tf="1s" class="on">1s</button>
+          <button data-tf="1m">1m</button>
+          <button data-tf="15m">15m</button>
+          <button data-tf="1h">1H</button>
+          <button data-tf="4h">4H</button>
+          <button data-tf="1d">1D</button>
+        </div>
+      </div>
+      <div class="chart-subnote">
+        <span class="muted">View timeframe is display-only. Grid metrics use the finest interval that fits the period — true 1s on short windows. On coarser intervals intra-candle round-trips are estimated, so Grid Profit is a conservative lower bound.</span>
+        <span class="coarse-note hidden" id="coarseNote">⚠ fills estimated (coarse interval)</span>
+        <span class="grid-data-badge" id="gridDataBadge">grid data: —</span>
+      </div>
+      <div class="chart-tools">
+        <label class="toggle green"><input type="checkbox" id="tgGrids" checked><span class="tg-track"></span>Show grids</label>
+        <label class="toggle green"><input type="checkbox" id="tgCandles" checked><span class="tg-track"></span>Show candles</label>
+        <label class="toggle"><input type="checkbox" id="tgOrders"><span class="tg-track"></span>Show orders</label>
+        <label class="toggle"><input type="checkbox" id="tgForecast"><span class="tg-track"></span>Forecast mode</label>
+        <label class="toggle"><input type="checkbox" id="tgLabels" checked><span class="tg-track"></span>Grid labels</label>
+        <button class="toggle" id="reseed" title="Regenerate forecast paths">🎲 Reseed forecast</button>
+        <button class="toggle" id="nowBtn" title="Jump back to the current price (hotkey: N)">⊙ Now</button>
+        <button class="toggle" id="endNowBtn" title="Move the END line to the current moment (hotkey: E)">⇥ END→Now</button>
+        <button class="toggle" id="fitBtn" title="Reset zoom & pan">⤢ Fit</button>
+      </div>
+      <div class="ohlc" id="ohlc"></div>
+      <div class="chart-host" id="chartHost">
+        <canvas id="cv"></canvas>
+        <div class="order-tip" id="orderTip"></div>
+        <div class="scen-legend hidden" id="scenLegend">
+          <div class="scen-title">Pick a scenario to include in metrics:</div>
+          <button class="scen-opt" data-scen="optimistic"><i style="background:var(--green)"></i>Optimistic</button>
+          <button class="scen-opt" data-scen="neutral"><i style="background:var(--blue)"></i>Neutral / flat</button>
+          <button class="scen-opt" data-scen="bearish"><i style="background:var(--red)"></i>Bearish</button>
+          <button class="scen-opt scen-none on" data-scen="none">✕ None (real data only)</button>
+        </div>
+        <div class="chart-hint">Wheel = zoom · <b style="color:var(--gold)">Ctrl</b>+wheel = grids · Drag = pan · <b style="color:var(--gold)">Shift</b>+drag = move grid ↕ · <b style="color:var(--gold)">Ctrl</b>+drag = move period ↔ · <b style="color:var(--gold)">Alt</b>+drag = set low/high · <b style="color:var(--gold)">N</b> = now · <b style="color:var(--gold)">E</b> = END→now · <b style="color:var(--gold)">F</b> = fit</div>
+      </div>
+    </div>
+
+    <div class="center-grid">
+      <!-- optimization results -->
+      <div class="panel eqpanel">
+        <div class="opt-head">
+          <h3>Optimization Results <span class="auto-badge" id="optAutoBadge">● auto</span>
+            <span class="opt-info" title="Scans many candidate grids (low/high ranges, grid counts, Geometric/Arithmetic) and backtests each on the SAME real data with YOUR investment, fee and slippage. With walk-forward on, candidates are ranked on the in-sample (first 70%) slice and re-tested on the held-out out-of-sample (last 30%) slice. Click any row to apply that config.">ⓘ</span>
+          </h3>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <label class="wf-toggle" title="Rank on the first 70%, validate on the held-out last 30%"><input type="checkbox" id="wfToggle" checked><span class="tg-track"></span>Walk-forward</label>
+            <div class="seg subtle" id="optSort" style="grid-auto-columns:max-content">
+              <button data-sort="total" class="on">Max PnL</button>
+              <button data-sort="apr">Max APR</button>
+              <button data-sort="risk">Profit/Risk</button>
+            </div>
+          </div>
+        </div>
+        <div class="opt-note" id="optNote"><b>Walk-forward on.</b> Ranked on in-sample (IS, first 70%), re-tested on out-of-sample (OOS, last 30%). A big <b>IS→OOS drop</b> (red Δ) means the config fit past noise, not a real edge — don't trust it forward.</div>
+        <div class="opt-scroll">
+        <table class="opt">
+          <thead><tr><th>Config</th><th>Grids</th><th>IS PnL</th><th>IS APR</th><th>OOS PnL</th><th>OOS APR</th><th>Δ APR</th></tr></thead>
+          <tbody id="optBody"><tr><td colspan="7" class="empty">Computing…</td></tr></tbody>
+        </table>
+        </div>
+      </div>
+      <!-- history -->
+      <div class="panel eqpanel">
+        <div class="opt-head"><h3>History</h3></div>
+        <div class="hist-head">
+          <span>Grid Profit <span class="gp" id="histGP">0.00 USDT</span></span>
+          <span class="muted">Matched <b id="histMatched">0</b></span>
+        </div>
+        <div class="hist-list">
+          <table class="hist">
+            <thead><tr><th>Closed</th><th>Buy → Sell</th><th>Qty</th><th>Fees</th><th>Profit</th></tr></thead>
+            <tbody id="histBody"><tr><td colspan="5" class="empty">No matched trades yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RIGHT COLUMN ============ -->
+  <div class="col col-right">
+    <div class="panel pnl-panel" id="pnlPanel">
+      <div class="panel-title"><span class="ic">📈</span> PnL Curve <span class="spark-val" id="sparkVal">—</span></div>
+      <div class="pnl-spark"><canvas class="spark" id="spark"></canvas></div>
+      <div class="mini-grid">
+        <div class="mini-cell"><div class="k">Total PnL</div><div class="v" id="mTotal">—</div><div class="s" id="mTotalPct">—</div></div>
+        <div class="mini-cell"><div class="k">Grid Profit</div><div class="v pos" id="mGrid">—</div><div class="s">realized</div></div>
+        <div class="mini-cell"><div class="k">Floating</div><div class="v" id="mFloat">—</div><div class="s">unrealized</div></div>
+        <div class="mini-cell"><div class="k">APR (extrap.)</div><div class="v pos" id="mApr">—</div><div class="s">annualized</div></div>
+        <div class="mini-cell"><div class="k">Profit / Risk</div><div class="v" id="mRisk">—</div><div class="s">pnl ÷ drawdown</div></div>
+        <div class="mini-cell"><div class="k">Max Drawdown</div><div class="v neg" id="mDD">—</div><div class="s">peak-to-trough</div></div>
+      </div>
+    </div>
+
+    <div class="panel mc-panel">
+      <div class="panel-title"><span class="ic">🎲</span> Monte Carlo
+        <span class="opt-info" title="Generates many random future price paths from the same volatility/momentum model (neutral drift), backtests YOUR current grid config over real history + each path, and shows the spread of outcomes. One forecast line is noise; the distribution is the honest answer. P5/P95 = 5th/95th percentile of Total PnL across paths.">ⓘ</span>
+        <span class="mc-stale" id="mcStale" style="display:none">● params changed — re-run</span>
+      </div>
+      <div class="mc-head">
+        <div class="mc-n" id="mcN">
+          <button data-n="100">100</button>
+          <button data-n="300" class="on">300</button>
+          <button data-n="500">500</button>
+        </div>
+        <button class="mc-run" id="mcRun">▶ Run paths</button>
+      </div>
+      <div class="mc-state" id="mcState">Turn on <b>Forecast mode</b> and set a future horizon (drag the END line right or pick a preset), then run paths to see the outcome distribution.</div>
+      <div class="mc-body" id="mcBody" style="display:none">
+        <div class="mc-grid3">
+          <div class="mc-cell p5"><div class="k">P5 (bad)</div><div class="v" id="mcP5">—</div></div>
+          <div class="mc-cell p50"><div class="k">Median</div><div class="v" id="mcP50">—</div></div>
+          <div class="mc-cell p95"><div class="k">P95 (good)</div><div class="v" id="mcP95">—</div></div>
+        </div>
+        <div class="mc-row2">
+          <div class="it"><span class="k">Profitable paths</span><span class="v" id="mcWin">—</span></div>
+          <div class="it"><span class="k">Median APR</span><span class="v" id="mcApr">—</span></div>
+          <div class="it"><span class="k">Median max DD</span><span class="v" id="mcDD">—</span></div>
+        </div>
+        <canvas class="mc-hist" id="mcHist"></canvas>
+        <div class="mc-foot" id="mcFoot">Distribution of Total PnL across paths. Centered on neutral drift — optimistic/bearish just shift the whole curve by ±1σ.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="ic">📊</span> Trading Statistics</div>
+      <div class="kv"><span class="k">Period</span><span class="v" id="tsPeriod" style="color:var(--blue);font-size:10.5px">—</span></div>
+      <div class="kv"><span class="k">Initial Balance</span><span class="v" id="tsInit">—</span></div>
+      <div class="kv"><span class="k">Final Balance</span><span class="v pos" id="tsFinal">—</span></div>
+      <div class="kv"><span class="k">Total Fees</span><span class="v neg" id="tsFees">—</span></div>
+      <div class="kv"><span class="k">Net Profit</span><span class="v" id="tsNet">—</span></div>
+      <div class="kv"><span class="k">APR</span><span class="v pos" id="tsApr">—</span></div>
+      <div class="kv"><span class="k">Profit / Day</span><span class="v" id="tsPpd">—</span></div>
+      <div class="kv"><span class="k">Buy Trades</span><span class="v" id="tsBuy">—</span></div>
+      <div class="kv"><span class="k">Sell Trades</span><span class="v" id="tsSell">—</span></div>
+      <div class="kv"><span class="k">Out of Range</span><span class="v" id="tsOor">—</span></div>
+      <div class="kv st-sep"><span class="k">Strategy Stop Price</span><span class="v" id="tsStop">—</span></div>
+      <div class="kv"><span class="k">Sell Qty at Stop</span><span class="v" id="tsSellQty">—</span></div>
+      <div class="kv"><span class="k">Avg Sell @ Stop</span><span class="v" id="tsAvgSell">—</span></div>
+      <div class="kv"><span class="k">Balance at Stop</span><span class="v" id="tsBalStop" style="font-size:10.5px">—</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="ic">⚡</span> Efficiency Analysis</div>
+      <div class="bar-row">
+        <div class="top"><span class="lab"><i style="background:var(--blue)"></i>Volatility (ATR)</span><span class="val" id="effVol">—</span></div>
+        <div class="bar-track"><div class="bar-fill" id="effVolBar" style="width:0;background:var(--blue)"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><span class="lab"><i style="background:var(--gold)"></i>Grid Efficiency</span><span class="val" id="effEff">—</span></div>
+        <div class="bar-track"><div class="bar-fill" id="effEffBar" style="width:0;background:var(--gold)"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><span class="lab"><i style="background:var(--green)"></i>Range Coverage</span><span class="val" id="effCov">—</span></div>
+        <div class="bar-track"><div class="bar-fill" id="effCovBar" style="width:0;background:var(--green)"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><span class="lab"><i style="background:var(--red)"></i>Fee Impact</span><span class="val" id="effFee">—</span></div>
+        <div class="bar-track"><div class="bar-fill" id="effFeeBar" style="width:0;background:var(--red)"></div></div>
+      </div>
+      <div class="reco" id="reco">Recommendation: adjust settings to see analysis.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><span class="ic">🎯</span> Time In Range</span>
+        <span class="tir-info" id="tirInfo"></span>
+      </div>
+      <div class="range-strip">
+        <div class="lab" id="tirVal">—</div>
+        <div class="range-bar" id="tirBar">
+          <div class="g" id="tirG" style="width:50%" data-seg="buy"></div>
+          <div class="r" id="tirR" style="width:50%" data-seg="sell"></div>
+          <div class="o" id="tirO" style="width:0" data-seg="oor"></div>
+        </div>
+        <div class="range-foot"><span><i class="dot g"></i>Buy side <b id="tirBuy" class="mono">0</b></span><span><b id="tirSell" class="mono">0</b> Sell side<i class="dot r"></i></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   Spot Grid Bot Calculator — vanilla JS, custom canvas chart engine
+   Grid metrics ALWAYS use 1s-precision real data for the chosen period;
+   the chart timeframe is display-only and never affects the backtest.
+   ========================================================================= */
+const $ = s => document.querySelector(s);
+const fmt = (n,d=2)=> (n==null||isNaN(n))?'—':Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sign = n => (n>=0?'+':'');
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const pad = n => String(n).padStart(2,'0');
+const nowSec = ()=>Math.floor(Date.now()/1000);
+const pf = n => fmt(n, state.dec);                       // price with per-coin decimals (display)
+const fpx = n => (n==null||isNaN(n))?'—':Number(n).toFixed(state.dec);  // canvas labels
+const nf = n => { const v=Number(n); return isFinite(v)?v.toFixed(state.dec):''; };  // comma-free, for <input> values
+function fmtDur(sec){
+  sec=Math.max(0,Math.round(sec));
+  const d=Math.floor(sec/86400); sec-=d*86400;
+  const h=Math.floor(sec/3600); sec-=h*3600;
+  const m=Math.floor(sec/60); const s=sec-m*60;
+  const parts=[];
+  if(d) parts.push(d+'d');
+  if(h) parts.push(h+'h');
+  if(m && parts.length<2) parts.push(m+'m');
+  if(!d && !h && !m) parts.push(s+'s');
+  return parts.length?parts.join(' '):'0s';
+}
+
+/* APR is an annualized extrapolation — meaningless on very short windows.
+   Below APR_MIN_DAYS we keep the number but visibly flag it as noise. */
+const APR_MIN_DAYS = 1.0;
+function setAprCell(sel, apr, days, withSign){
+  const el=$(sel); if(!el) return;
+  const txt=(withSign?sign(apr):'')+fmt(apr,1)+'%';
+  el.className='v '+(apr>=0?'pos':'neg');
+  el.innerHTML = (days>=APR_MIN_DAYS)
+    ? txt
+    : `<span class="unreliable" title="Window is only ${fmtDur(days*86400)} long. APR annualizes that tiny sample ×365 — it is noise, not a forecast. Backtest at least 1 day for a meaningful APR.">${txt}</span><span class="apr-warn" title="Annualized from a &lt;1-day window — not reliable">noisy</span>`;
+}
+
+/* display timeframes (chart only) */
+const TF = { '1s':1, '1m':60, '15m':900, '1h':3600, '4h':14400, '1d':86400 };
+/* candidate intervals for the grid-metrics dataset (prefer the finest) */
+const GRID_IV = [['1s',1],['1m',60],['5m',300],['15m',900],['1h',3600],['4h',14400],['1d',86400]];
+const GRID_MAXC = 6500;        // cap candle count for the period dataset (allows 1m up to ~4.5 days)
+const MIN_HISTORY = 8*365*86400;  // how far back START may go (≈ since 2018)
+const MAX_FUTURE  = 7776000;      // how far ahead END may be dragged in forecast mode (≈ 3 months)
+function pickGridInterval(durSec){
+  for(const [iv,s] of GRID_IV){ if(durSec/s <= GRID_MAXC) return [iv,s]; }
+  return ['1h',3600];
+}
+/* top-10 (ex-stablecoin) tradeable assets — sim base price + decimals + icon colors */
+const COINS = {
+  BTCUSDT:{base:98000,dec:2,c1:'#f7931a',c2:'#ffce6a'},
+  ETHUSDT:{base:3400, dec:2,c1:'#627eea',c2:'#b3c0f7'},
+  BNBUSDT:{base:680,  dec:2,c1:'#f3ba2f',c2:'#ffe08a'},
+  SOLUSDT:{base:72,   dec:2,c1:'#9945ff',c2:'#14f195'},
+  XRPUSDT:{base:2.30, dec:4,c1:'#5b6b78',c2:'#aeb9c4'},
+  ADAUSDT:{base:0.90, dec:4,c1:'#0033ad',c2:'#3468d1'},
+  DOGEUSDT:{base:0.38,dec:5,c1:'#c2a633',c2:'#e8d27a'},
+  TRXUSDT:{base:0.27, dec:5,c1:'#eb0029',c2:'#ff5a6e'},
+  AVAXUSDT:{base:40,  dec:3,c1:'#e84142',c2:'#ff8a8a'},
+  LINKUSDT:{base:22,  dec:3,c1:'#2a5ada',c2:'#6f9bff'},
+};
+const SCEN_COLORS = {optimistic:'#16c784', neutral:'#4f9cf9', bearish:'#ea3943'};
+
+/* ---------------- Global state ---------------- */
+const state = {
+  tf:'1s',
+  candles:[],            // DISPLAY candles {t,o,h,l,c}
+  symbol:'SOLUSDT', dec:2,
+  last:null,
+  high24:null, low24:null, chg24:null,
+  startTs:0, endTs:0, endLive:true,   // grid period as absolute timestamps (sec)
+  gridData:null,         // {startTs,endTs,iv,ivSec,candles,sim}
+  showGrids:true, forecast:false, labels:true, showOrders:false, showCandles:true,
+  scenario:'none',       // none | optimistic | neutral | bearish
+  fcHorizon:86400,       // forecast horizon seconds (default 1D)
+  fcVolMul:1.0, fcSpread:5,
+  fcTrend:0.5,           // 0 = pure random walk … 1 = strong trend persistence (momentum)
+  autoForecast:false,    // when on, scenarios are derived from 3-month historical volatility/drift
+  histStats:null,        // {volDaily, driftDaily} from last ~90 days
+  seed: Math.random()*1e9|0,
+  sim:false,
+  result:null,
+  optResults:null,
+};
+
+/* ===========================================================
+   DATA FEED — Binance REST + WebSocket with simulation fallback
+   =========================================================== */
+const Feed = (() => {
+  let ws=null, onUpdate=()=>{}, simTimer=null, simBase=72;
+  const REST_HOSTS = ['https://api.binance.com','https://api-gcp.binance.com','https://data-api.binance.vision'];
+
+  async function rawKlines(params){
+    for(const host of REST_HOSTS){
+      try{
+        const r = await fetch(`${host}/api/v3/klines?${params}`,{mode:'cors'});
+        if(!r.ok) continue;
+        const raw = await r.json();
+        return raw.map(k=>({t:Math.floor(k[0]/1000),o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
+      }catch(e){}
+    }
+    return null;
+  }
+  async function fetchKlines(tf, limit=1000){
+    return rawKlines(`symbol=${state.symbol}&interval=${tf}&limit=${limit}`);
+  }
+  /* fetch a specific [startMs,endMs] window, paginated */
+  async function fetchRange(iv, startMs, endMs, maxCandles=GRID_MAXC){
+    const out=[]; let cur=startMs; let guard=0;
+    while(cur < endMs && out.length < maxCandles && guard < 40){
+      guard++;
+      const part = await rawKlines(`symbol=${state.symbol}&interval=${iv}&startTime=${cur}&endTime=${endMs}&limit=1000`);
+      if(!part || !part.length) break;
+      for(const c of part){ if(!out.length || c.t>out[out.length-1].t) out.push(c); }
+      const lastT = part[part.length-1].t*1000;
+      if(part.length<1000) break;
+      cur = lastT + 1;
+    }
+    return out.length?out:null;
+  }
+  async function fetch24h(){
+    for(const host of REST_HOSTS){
+      try{
+        const r = await fetch(`${host}/api/v3/ticker/24hr?symbol=${state.symbol}`,{mode:'cors'});
+        if(!r.ok) continue;
+        const d = await r.json();
+        return {high:+d.highPrice, low:+d.lowPrice, chg:+d.priceChangePercent, last:+d.lastPrice};
+      }catch(e){}
+    }
+    return null;
+  }
+
+  function connectWS(tf){
+    if(ws){ try{ws.onclose=null;ws.close();}catch(e){} ws=null; }
+    if(state.sim) return;
+    try{
+      ws = new WebSocket(`wss://stream.binance.com:9443/ws/${state.symbol.toLowerCase()}@kline_${tf}`);
+      ws.onmessage = ev=>{
+        const k = JSON.parse(ev.data).k;
+        onUpdate({t:Math.floor(k.t/1000),o:+k.o,h:+k.h,l:+k.l,c:+k.c}, k.x);
+      };
+      ws.onerror = ()=>{};
+      ws.onclose = ()=>{ if(!state.sim) setTimeout(()=>connectWS(state.tf),2500); };
+    }catch(e){ startSim(tf); }
+  }
+
+  /* ---- simulation fallback ---- */
+  function simSeries(startSec, endSec, step, base){
+    const out=[]; let p=base;
+    const vol=0.0006*Math.sqrt(step);
+    let i=0;
+    for(let t=startSec; t<=endSec; t+=step){
+      const o=p;
+      const drift=(Math.random()-0.5)*2;
+      const c=o*(1+drift*vol+Math.sin(i/40)*vol*0.4);
+      const h=Math.max(o,c)*(1+Math.random()*vol*0.7);
+      const l=Math.min(o,c)*(1-Math.random()*vol*0.7);
+      out.push({t,o,h,l,c}); p=c; i++;
+    }
+    return out;
+  }
+  function genHistory(tf, limit=1000){
+    const step=TF[tf], now=nowSec();
+    const s=simSeries(now-limit*step, now, step, simBase);
+    if(s.length) simBase=s[s.length-1].c;
+    return s;
+  }
+  function startSim(tf){
+    state.sim=true;
+    if(simTimer) clearInterval(simTimer);
+    const step=TF[tf];
+    simTimer=setInterval(()=>{
+      const now=nowSec(); const t=now-(now%step);
+      const last=state.candles[state.candles.length-1];
+      const vol=0.0005*Math.sqrt(step);
+      const base=last?last.c:simBase;
+      const nc=base*(1+(Math.random()-0.5)*2*vol);
+      if(last&&last.t===t) onUpdate({t,o:last.o,h:Math.max(last.h,nc),l:Math.min(last.l,nc),c:nc},false);
+      else onUpdate({t,o:base,h:Math.max(base,nc),l:Math.min(base,nc),c:nc},false);
+    }, Math.min(1000, step*1000));
+  }
+
+  return {
+    setHandler(fn){ onUpdate=fn; },
+    async loadDisplay(tf){
+      let kl=await fetchKlines(tf);
+      if(!kl){ state.sim=true; simBase=(COINS[state.symbol]&&COINS[state.symbol].base)||simBase; kl=genHistory(tf); } else state.sim=false;
+      const t24=await fetch24h();
+      if(t24){ state.high24=t24.high; state.low24=t24.low; state.chg24=t24.chg; if(t24.last) simBase=t24.last; }
+      return {candles:kl, sim:state.sim};
+    },
+    async loadRange(iv, ivSec, startSec, endSec){
+      let kl=null;
+      if(!state.sim) kl=await fetchRange(iv, startSec*1000, endSec*1000);
+      let sim=false;
+      if(!kl){ sim=true; kl=simSeries(startSec, endSec, ivSec, simBase||72); }
+      return {candles:kl, sim};
+    },
+    /* ~N daily candles for historical volatility/drift (Auto forecast) */
+    async fetchDaily(limit=190){
+      if(state.sim) return null;
+      return await rawKlines(`symbol=${state.symbol}&interval=1d&limit=${limit}`);
+    },
+    /* tick-accurate close at a specific second (1s kline) — used to pin the exact stop price */
+    async closeAt(endSec){
+      if(state.sim) return null;
+      try{
+        const kl=await rawKlines(`symbol=${state.symbol}&interval=1s&startTime=${(endSec-4)*1000}&endTime=${endSec*1000+999}&limit=10`);
+        if(kl&&kl.length){
+          let best=null; for(const c of kl){ if(c.t<=endSec && (!best||c.t>best.t)) best=c; }
+          return best? best.c : kl[kl.length-1].c;
+        }
+      }catch(e){}
+      return null;
+    },
+    async loadOlder(tf, beforeTs, limit=1000){
+      if(!state.sim){
+        const kl=await rawKlines(`symbol=${state.symbol}&interval=${tf}&endTime=${beforeTs*1000-1}&limit=${limit}`);
+        if(kl&&kl.length) return kl.filter(c=>c.t<beforeTs);
+        return null;
+      }
+      const step=TF[tf]; const end=beforeTs-step; const start=end-(limit-1)*step;
+      return simSeries(start, end, step, simBase||72);
+    },
+    subscribe(tf){ if(state.sim) startSim(tf); else connectWS(tf); },
+    stop(){ if(ws){try{ws.onclose=null;ws.close()}catch(e){}} if(simTimer)clearInterval(simTimer); }
+  };
+})();
+
+/* ===========================================================
+   BACKTEST ENGINE
+   =========================================================== */
+function buildLevels(lower, upper, n, mode){
+  const L=[];
+  if(mode==='geometric'){
+    const r=Math.pow(upper/lower,1/n);
+    for(let i=0;i<=n;i++) L.push(lower*Math.pow(r,i));
+  }else{
+    const s=(upper-lower)/n;
+    for(let i=0;i<=n;i++) L.push(lower+s*i);
+  }
+  return L;
+}
+
+/* candles: the grid (1s-preferred) dataset; sIdx/eIdx into that array */
+function backtest(candles, sIdx, eIdx, p){
+  const {lower,upper,grids,mode,invest,fee}=p;
+  const feeR=fee/100;
+  const slip=Math.max(0,(p.slipBps||0))/1e4;   // per-fill slippage/spread: buys fill higher, sells lower
+  const sellAll = p.sellAllOnStop!==false;   // default: sell all on stop (like Binance)
+  const out={
+    levels:[], gridProfit:0, floating:0, total:0, totalFees:0,
+    buyTrades:0, sellTrades:0, matched:0, qtyPerOrder:0, initialBuyQty:0,
+    startPrice:0, entryPrice:0, days:0, apr:0, profitPerGridPct:0,
+    inRange:0, outRange:0, atrPct:0, rangeCov:0, feeImpact:0,
+    equity:[], maxDD:0, trades:[], finalPrice:0, gridEff:0, riskRatio:0,
+    buyTimeSec:0, sellTimeSec:0, oorTimeSec:0, periodSec:0,
+    stopPrice:0, sellQtyStop:0, avgSellStop:0, cashEnd:0, invQtyEnd:0, invValueEnd:0,
+    balanceStopUsdt:0, balanceStopSol:0, sellAll:sellAll, pairs:[],
+  };
+  if(eIdx<=sIdx || candles.length===0 || upper<=lower || grids<2) return out;
+  sIdx=clamp(sIdx,0,candles.length-1); eIdx=clamp(eIdx,0,candles.length-1);
+  const seg=candles.slice(sIdx,eIdx+1);
+  if(seg.length<2) return out;
+
+  const levels=buildLevels(lower,upper,grids,mode);
+  out.levels=levels;
+  const startPrice=(p.entry&&p.entry>0)? p.entry : seg[0].c;
+  out.startPrice=startPrice;
+  const mid=(lower+upper)/2;
+  const cells=grids;
+
+  // Binance uses EQUAL BASE quantity per grid (Order History shows a constant Executed qty).
+  // Calibrated against a real closed bot: q = investment / Σ(buy lines of all cells except the
+  // topmost), which reproduces Binance's per-order quantity to <0.3%.
+  let sumBuyLines=0; for(let i=0;i<cells-1;i++) sumBuyLines+=levels[i];
+  const qBase = sumBuyLines>0 ? invest/sumBuyLines : 0;
+  out.qtyPerOrder=qBase;
+
+  // cash + inventory accounting
+  let cash=invest;
+  const holding=new Array(cells).fill(false);
+  const buyT=new Array(cells).fill(0), buyP=new Array(cells).fill(0);  // per-cell open-buy info (for matched pairs)
+  // Seed inventory only for cells fully ABOVE the start price (buy line >= start).
+  // The straddle cell (start between its buy & sell line) stays a pending BUY — confirmed by the
+  // real bot whose first fill was a limit BUY just below the start price, not a seed.
+  let initQty=0, initCost=0;
+  const seedPx=startPrice*(1+slip);
+  for(let i=0;i<cells;i++){
+    if(levels[i]>=startPrice){
+      holding[i]=true; initQty+=qBase; initCost+=qBase*seedPx;
+      buyT[i]=seg[0].t; buyP[i]=levels[i];          // matched pair uses the grid line as the buy leg
+      const f=qBase*seedPx*feeR; cash-=qBase*seedPx+f; out.totalFees+=f;
+    }
+  }
+  out.initialBuyQty=initQty;
+  out.entryPrice=initQty>0?initCost/initQty:startPrice;   // = start price (market seed)
+
+  const recTrades=p.recordTrades!==false; const TCAP=4000;
+  const trades=[]; const pairs=[];
+  const base=(state&&state.symbol)? state.symbol.replace('USDT','') : 'SOL';
+  const holdValue=c=>{ let v=0; for(let i=0;i<cells;i++) if(holding[i]) v+=qBase*c; return v; };
+  let prev=startPrice;
+  const equity=[]; let peak=-1e9, dd=0;
+
+  // process one MONOTONIC price move a->b, filling every grid line crossed.
+  // tA/tSpan place interpolated fill times within the candle so dots spread out.
+  function doLeg(a,b,tA,tSpan){
+    if(b>a){                                   // rising → sells
+      const d=(b-a)||1e-9;
+      for(let i=0;i<cells;i++){
+        if(holding[i] && levels[i+1]>a && levels[i+1]<=b){
+          const exSell=levels[i+1]*(1-slip), exBuy=levels[i]*(1+slip);
+          const sellFee=qBase*exSell*feeR, buyFee=qBase*exBuy*feeR;
+          const net=qBase*(exSell-exBuy)-sellFee-buyFee;
+          cash+=qBase*exSell-sellFee; out.totalFees+=sellFee;
+          out.gridProfit+=net; holding[i]=false; out.sellTrades++; out.matched++;
+          const st=Math.round(tA+((levels[i+1]-a)/d)*tSpan);
+          if(recTrades && trades.length<TCAP){
+            trades.push({t:st,side:'Sell',price:exSell,qty:qBase,fee:sellFee,feeAsset:'USDT',profit:net});
+            pairs.push({sellT:st,buyT:buyT[i]||seg[0].t,buyP:exBuy,sellP:exSell,qty:qBase,
+                        buyFee:qBase*feeR,buyFeeAsset:base,sellFee,sellFeeAsset:'USDT',profit:net});
+          }
+        }
+      }
+    }else if(b<a){                              // falling → buys
+      const d=(a-b)||1e-9;
+      for(let i=cells-1;i>=0;i--){
+        if(!holding[i] && levels[i]<a && levels[i]>=b){
+          const exBuy=levels[i]*(1+slip);
+          const buyFee=qBase*exBuy*feeR;
+          cash-=qBase*exBuy+buyFee; out.totalFees+=buyFee;
+          holding[i]=true; out.buyTrades++;
+          buyT[i]=Math.round(tA+((a-levels[i])/d)*tSpan); buyP[i]=levels[i];
+          if(recTrades && trades.length<TCAP) trades.push({t:buyT[i],side:'Buy',price:exBuy,qty:qBase,fee:qBase*feeR,feeAsset:base,profit:0});
+        }
+      }
+    }
+  }
+
+  for(let k=1;k<seg.length;k++){
+    const cd=seg[k], t0=seg[k-1].t, t1=seg[k].t, dt=Math.max(1,t1-t0);
+    const c=cd.c;
+    const hi=Math.max(cd.h!=null?cd.h:c, prev, c), lo=Math.min(cd.l!=null?cd.l:c, prev, c);
+    // time-in-range: count by where the candle traded relative to mid
+    if(c>=lower && c<=upper){ if(c<mid) out.buyTimeSec+=dt; else out.sellTimeSec+=dt; }
+    else out.oorTimeSec+=dt;
+    // Walk the candle's intra-bar path so we capture round-trips a close-to-close walk would miss.
+    // Heuristic order: bullish candle dips to low first then rallies to high; bearish does the reverse.
+    const lowFirst = c>=prev;
+    const wps = lowFirst ? [prev, lo, hi, c] : [prev, hi, lo, c];
+    let D=0; for(let j=0;j<wps.length-1;j++) D+=Math.abs(wps[j+1]-wps[j]); if(D<=0) D=1e-9;
+    let cum=0;
+    for(let j=0;j<wps.length-1;j++){
+      const a=wps[j], b=wps[j+1], legD=Math.abs(b-a);
+      if(legD>0) doLeg(a,b, t0+(cum/D)*(t1-t0), (legD/D)*(t1-t0));
+      cum+=legD;
+    }
+    prev=c;
+    const eq=cash+holdValue(c)-invest; equity.push(eq);
+    if(eq>peak) peak=eq; if(peak-eq>dd) dd=peak-eq;
+  }
+  // final price = tick-accurate stop price when pinned (else last candle close).
+  // At stop the bot market-liquidates inventory at this price (no grid orders), so we only revalue.
+  const endP=(p.stopPrice && p.stopPrice>0)? p.stopPrice : seg[seg.length-1].c;
+  out.finalPrice=endP;
+  let invQty=0; for(let i=0;i<cells;i++) if(holding[i]) invQty+=qBase;
+  const invValue=invQty*endP;
+  out.cashEnd=cash; out.invQtyEnd=invQty; out.invValueEnd=invValue;
+  out.total=cash+invValue-invest;                 // Total = Current Value − Investment
+  out.floating=out.total-out.gridProfit;          // Floating = Total − Grid Profit (Binance definition)
+
+  // stop / exit metrics
+  out.stopPrice=endP;                             // Strategy Stop Price = market price at stop
+  out.sellQtyStop=invQty;                         // SOL held when stopped
+  out.avgSellStop=endP;                           // avg sell price at stop ≈ final price
+  if(sellAll){ out.balanceStopUsdt=cash+invQty*endP*(1-slip)*(1-feeR); out.balanceStopSol=0; }
+  else       { out.balanceStopUsdt=cash;                    out.balanceStopSol=invQty; }
+
+  out.periodSec=seg[seg.length-1].t-seg[0].t;
+  const inSec=out.buyTimeSec+out.sellTimeSec;
+  out.inRange=out.periodSec>0?inSec/out.periodSec*100:0;
+  out.outRange=100-out.inRange;
+  out.equity=equity; out.maxDD=dd; out.trades=trades.reverse(); out.pairs=pairs.reverse();
+  out.days=out.periodSec/86400;
+  out.apr=out.days>0?(out.total/invest)/out.days*365*100:0;
+
+  let avgSpacePct=0;
+  for(let i=0;i<cells;i++) avgSpacePct+=(levels[i+1]-levels[i])/levels[i];
+  avgSpacePct=avgSpacePct/cells*100;
+  out.profitPerGridPct=avgSpacePct-2*fee-2*(p.slipBps||0)/100;
+
+  let tr=0;
+  for(let k=1;k<seg.length;k++){ const h=seg[k].h,l=seg[k].l,pc=seg[k-1].c; tr+=Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)); }
+  out.atrPct=(tr/(seg.length-1))/endP*100;
+
+  let mn=Infinity,mx=-Infinity;
+  for(const cd of seg){ if(cd.l<mn)mn=cd.l; if(cd.h>mx)mx=cd.h; }
+  const span=upper-lower;
+  out.rangeCov=clamp((Math.min(mx,upper)-Math.max(mn,lower))/span*100,0,100);
+  out.feeImpact=out.gridProfit>0?clamp(out.totalFees/(out.gridProfit+out.totalFees)*100,0,100):(out.totalFees>0?100:0);
+  out.gridEff=out.matched/Math.max(1,seg.length)*100;
+  out.riskRatio=out.maxDD>0.01?out.total/out.maxDD:(out.total>0?out.total:0);
+  return out;
+}
+
+/* ===========================================================
+   FORECAST GENERATOR
+   =========================================================== */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+/* standard-normal sample (Box–Muller) from a uniform rng */
+function gaussRand(rnd){ let u=0,v=0; while(u===0)u=rnd(); while(v===0)v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+/* generate 3 scenario paths over `count` steps of `stepSec`.
+   Realism: Gaussian shocks + volatility clustering + AR(1) momentum + occasional jumps. */
+function genForecast(lastClose, lastTs, count, stepSec, volPerStep, driftTotal, seed, trend){
+  const scen={ optimistic:driftTotal.optimistic, neutral:driftTotal.neutral, bearish:driftTotal.bearish };
+  const mom=clamp(trend!=null?trend:0.5, 0, 0.96);
+  const result={}; let si=0;
+  for(const key in scen){
+    const rnd=mulberry32(seed+si*99991);
+    const driftPer=scen[key]/count;
+    const arr=[]; let p=lastClose, t=lastTs;
+    let ret=0, vol=volPerStep;             // running return (momentum) & volatility (clustering)
+    for(let i=0;i<count;i++){
+      t+=stepSec; const o=p;
+      // volatility clustering: vol mean-reverts to base with its own noise
+      vol += (volPerStep-vol)*0.05 + (rnd()-0.5)*volPerStep*0.15; vol=clamp(vol, volPerStep*0.3, volPerStep*3.2);
+      let shock=gaussRand(rnd)*vol;
+      if(rnd()<0.012) shock += (rnd()-0.5)*2*vol*5;   // rare fat-tail jump
+      // AR(1) momentum: blend previous move with the new shock (trend persistence)
+      ret = mom*ret + (1-mom)*shock;
+      const c=o*(1+ret+driftPer);
+      const wig=vol*0.6;
+      const h=Math.max(o,c)*(1+Math.abs(gaussRand(rnd))*wig), l=Math.min(o,c)*(1-Math.abs(gaussRand(rnd))*wig);
+      arr.push({t,o,h,l,c}); p=c;
+    }
+    result[key]={candles:arr,color:SCEN_COLORS[key]}; si++;
+  }
+  return result;
+}
+/* one stochastic path with the SAME dynamics as genForecast (vol clustering + AR(1) + jumps).
+   Used by Monte Carlo to sample many futures under one drift assumption. */
+function genOnePath(lastClose,lastTs,count,stepSec,volPerStep,driftTotal,seed,trend){
+  const rnd=mulberry32(seed>>>0);
+  const mom=clamp(trend!=null?trend:0.5,0,0.96);
+  const driftPer=driftTotal/count;
+  const arr=[]; let p=lastClose,t=lastTs,ret=0,vol=volPerStep;
+  for(let i=0;i<count;i++){
+    t+=stepSec; const o=p;
+    vol+=(volPerStep-vol)*0.05+(rnd()-0.5)*volPerStep*0.15; vol=clamp(vol,volPerStep*0.3,volPerStep*3.2);
+    let shock=gaussRand(rnd)*vol;
+    if(rnd()<0.012) shock+=(rnd()-0.5)*2*vol*5;
+    ret=mom*ret+(1-mom)*shock;
+    const c=o*(1+ret+driftPer);
+    const wig=vol*0.6;
+    const h=Math.max(o,c)*(1+Math.abs(gaussRand(rnd))*wig), l=Math.min(o,c)*(1-Math.abs(gaussRand(rnd))*wig);
+    arr.push({t,o,h,l,c}); p=c;
+  }
+  return arr;
+}
+/* build forecast from current state into state's forecast object on Chart */
+function buildForecastObj(){
+  if(state.last==null) return null;
+  const N=500;
+  const horizon=Math.max(60, state.fcHorizon);
+  const stepSec=Math.max(1, Math.round(horizon/N));
+  let volPerStep, drift;
+  if(state.autoForecast && state.histStats){
+    // data-driven: scale 3-month daily volatility & drift to the horizon
+    const {volDaily, driftDaily}=state.histStats;
+    const days=horizon/86400;
+    volPerStep = volDaily*Math.sqrt(stepSec/86400);
+    const driftH = clamp(driftDaily*days, -0.6, 0.6);              // expected drift over horizon
+    const band   = clamp(volDaily*Math.sqrt(Math.max(days,0.01)), 0.004, 0.8); // ~1σ divergence
+    drift = { optimistic: driftH+band, neutral: driftH, bearish: driftH-band };
+  }else{
+    const atrFrac=clamp((state.result?.atrPct||0.05)/100, 0.0002, 0.05);
+    const refSec=state.gridData?.ivSec||1;
+    volPerStep=atrFrac*state.fcVolMul*Math.sqrt(stepSec/refSec);
+    const sp=state.fcSpread/100;
+    drift={optimistic:sp, neutral:0, bearish:-sp};
+  }
+  return genForecast(state.last, nowSec(), N, stepSec, volPerStep, drift, state.seed, state.fcTrend);
+}
+/* fetch ~3 months of daily candles and derive volatility + drift for Auto forecast */
+async function refreshHistStats(){
+  try{
+    const kl = await Feed.fetchDaily(190);
+    if(kl && kl.length>12){
+      const rets=[];
+      for(let i=1;i<kl.length;i++){ if(kl[i-1].c>0) rets.push(Math.log(kl[i].c/kl[i-1].c)); }
+      const mean=rets.reduce((a,b)=>a+b,0)/rets.length;
+      const v=rets.reduce((a,b)=>a+(b-mean)*(b-mean),0)/Math.max(1,rets.length-1);
+      state.histStats={ volDaily:Math.sqrt(v), driftDaily:mean, days:rets.length };
+    } else state.histStats=null;
+  }catch(e){ state.histStats=null; }
+  updateAutoNote();
+}
+function updateAutoNote(){
+  const el=$('#fcAutoStats'); if(!el) return;
+  if(state.histStats){
+    const s=state.histStats;
+    el.textContent=`σ ${fmt(s.volDaily*100,1)}%/day · drift ${sign(s.driftDaily*100)}${fmt(s.driftDaily*100,2)}%/day (${s.days}d)`;
+  }else el.textContent='(history unavailable — using estimate)';
+}
+/* selected scenario future candles within [now, endTs] for metrics */
+function scenarioFutureCandles(){
+  if(state.scenario==='none' || !state.forecast) return [];
+  const f=Chart.getForecast(); if(!f || !f[state.scenario]) return [];
+  const now=nowSec();
+  return f[state.scenario].candles.filter(c=>c.t>now && c.t<=state.endTs);
+}
+
+/* ===========================================================
+   CHART ENGINE  (canvas) — display-only timeframe
+   =========================================================== */
+const Chart = (()=>{
+  const host=$('#chartHost'), cv=$('#cv'), ctx=cv.getContext('2d');
+  const PAD={top:14,right:66,bottom:26,left:6};
+  let W=0,H=0,dpr=1;
+  let barW=7;
+  let rightIdx=0;
+  let priceMin=0,priceMax=0;
+  let autoScale=true;
+  let mouse={x:-1,y:-1,on:false};
+  let drag={type:null};
+  let forecast=null;
+  let loadingOlder=false, histExhausted=false;
+  const colors={ up:'#16c784',down:'#ea3943',grid:'#161d29',axis:'#6b778a',sell:'#ea3943',buy:'#16c784' };
+
+  function resize(){
+    dpr=window.devicePixelRatio||1;
+    W=host.clientWidth; H=host.clientHeight;
+    cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+  function plot(){ return {x:PAD.left,y:PAD.top,w:W-PAD.left-PAD.right,h:H-PAD.top-PAD.bottom}; }
+  function tfSec(){ return TF[state.tf]; }
+  function totalRightLimit(){
+    let lim=state.candles.length+8;
+    if(state.forecast && state.endTs>nowSec()) lim=Math.max(lim, idxOfTs(state.endTs)+6);
+    return lim+4;
+  }
+  function fit(){
+    const pl=plot();
+    if(!state.candles.length){ autoScale=true; return; }
+    const validPeriod = state.startTs && state.endTs && state.endTs>state.startTs;
+    if(!validPeriod){
+      rightIdx=state.candles.length+Math.min(10,(pl.w/barW)*0.12);
+      autoScale=true; clampScroll(); draw(); return;
+    }
+    // ---- horizontal: frame START..END with margin ----
+    const iStart=idxOfTs(state.startTs), iEnd=idxOfTs(state.endTs);
+    const span=Math.max(iEnd-iStart, 8);
+    const margin=span*0.14;
+    barW=clamp(pl.w/(span+margin*2), 0.3, 80);
+    rightIdx=iEnd+margin;
+    // ---- vertical: frame grid band + entry + period candles + current price ----
+    const p=readParams();
+    let mn=Infinity,mx=-Infinity;
+    if(p.upper>p.lower){ mn=Math.min(mn,p.lower); mx=Math.max(mx,p.upper); }
+    if(p.entry>0){ mn=Math.min(mn,p.entry); mx=Math.max(mx,p.entry); }
+    const a=Math.max(0,Math.floor(iStart)), b=Math.min(state.candles.length-1,Math.ceil(iEnd));
+    for(let i=a;i<=b;i++){ const c=state.candles[i]; if(!c)continue; if(c.l<mn)mn=c.l; if(c.h>mx)mx=c.h; }
+    if(state.last!=null){ mn=Math.min(mn,state.last); mx=Math.max(mx,state.last); }
+    if(!isFinite(mn)||!isFinite(mx)||mx<=mn){ autoScale=true; clampScroll(); draw(); return; }
+    const padv=(mx-mn)*0.12||0.5;
+    priceMin=mn-padv; priceMax=mx+padv; autoScale=false;
+    clampScroll(); draw();
+  }
+  function xOf(i){ const pl=plot(); const leftIdx=rightIdx-pl.w/barW; return pl.x+(i-leftIdx)*barW; }
+  function iOf(x){ const pl=plot(); const leftIdx=rightIdx-pl.w/barW; return leftIdx+(x-pl.x)/barW; }
+  function yOf(p){ const pl=plot(); return pl.y+(priceMax-p)/(priceMax-priceMin)*pl.h; }
+  function pOf(y){ const pl=plot(); return priceMax-(y-pl.y)/pl.h*(priceMax-priceMin); }
+  /* timestamp <-> display index */
+  function idxOfTs(ts){ if(!state.candles.length) return 0; return (ts-state.candles[0].t)/tfSec(); }
+  function tsOfIdx(i){ return state.candles.length? Math.round(state.candles[0].t+i*tfSec()) : nowSec(); }
+
+  function computePriceRange(){
+    if(!autoScale && isFinite(priceMin) && isFinite(priceMax) && priceMax>priceMin) return;
+    const pl=plot();
+    const leftIdx=Math.floor(rightIdx-pl.w/barW)-1;
+    const ri=Math.ceil(rightIdx);
+    let mn=Infinity,mx=-Infinity;
+    for(let i=Math.max(0,leftIdx); i<Math.min(state.candles.length,ri); i++){
+      const c=state.candles[i]; if(c.l<mn)mn=c.l; if(c.h>mx)mx=c.h;
+    }
+    if(state.forecast&&forecast){
+      for(const key in forecast){
+        const fc=forecast[key].candles;
+        for(let j=0;j<fc.length;j++){ const gi=idxOfTs(fc[j].t); if(gi>=leftIdx&&gi<=ri){ if(fc[j].l<mn)mn=fc[j].l; if(fc[j].h>mx)mx=fc[j].h; } }
+      }
+    }
+    const p=readParams();
+    if(state.showGrids&&p.upper>p.lower){ mn=Math.min(mn,p.lower); mx=Math.max(mx,p.upper); }
+    if(!isFinite(mn)||!isFinite(mx)){ mn=(state.last||72)*0.99; mx=(state.last||72)*1.01; }
+    const padv=(mx-mn)*0.08||0.5;
+    priceMin=mn-padv; priceMax=mx+padv;
+  }
+  function niceStep(range,target){
+    const raw=range/target; const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+    const norm=raw/mag; let s; if(norm<1.5)s=1;else if(norm<3)s=2;else if(norm<7)s=5;else s=10;
+    return s*mag;
+  }
+
+  function draw(){
+    if(W===0) return;
+    const pl=plot(); computePriceRange(); ctx.clearRect(0,0,W,H);
+    ctx.font='10px JetBrains Mono';
+    const step=niceStep(priceMax-priceMin,7);
+    const start=Math.ceil(priceMin/step)*step;
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    for(let v=start; v<=priceMax; v+=step){
+      const y=yOf(v);
+      ctx.strokeStyle=colors.grid; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pl.x,y); ctx.lineTo(pl.x+pl.w,y); ctx.stroke();
+      ctx.fillStyle=colors.axis; ctx.fillText(fpx(v), pl.x+pl.w+6, y);
+    }
+    drawTimeAxis(pl);
+    if(state.showGrids) drawGridLevels(pl);
+    if(state.showGrids) drawEntryLine(pl);
+    if(state.forecast&&forecast&&state.showCandles) drawForecast(pl);
+    if(state.showCandles) drawCandles(pl);
+    if(state.showOrders) drawOrders(pl);
+    if(state.showGrids&&state.labels) drawGridLabels(pl);
+    if(state.showGrids) drawEntryLabel(pl);
+    drawCurrentPrice(pl);
+    drawPeriodLines(pl);
+    if(mouse.on) drawCrosshair(pl);
+    // price-axis hit zone hint
+    if(drag.type==='vscale'){ ctx.fillStyle='rgba(79,156,249,0.05)'; ctx.fillRect(pl.x+pl.w,pl.y,PAD.right,pl.h); }
+  }
+
+  function drawTimeAxis(pl){
+    ctx.font='10px JetBrains Mono'; ctx.fillStyle=colors.axis; ctx.textAlign='center'; ctx.textBaseline='top';
+    const leftIdx=rightIdx-pl.w/barW; const stepBars=Math.max(1,Math.round(70/barW)); const ts=tfSec();
+    for(let i=Math.ceil(leftIdx/stepBars)*stepBars; i<rightIdx; i+=stepBars){
+      const x=xOf(i); if(x<pl.x-2||x>pl.x+pl.w) continue;
+      let t;
+      if(i<state.candles.length&&i>=0) t=state.candles[i].t;
+      else if(state.candles.length) t=state.candles[state.candles.length-1].t+(i-state.candles.length+1)*ts;
+      else continue;
+      const d=new Date(t*1000); let lab;
+      if(ts<60) lab=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+      else if(ts<3600) lab=pad(d.getHours())+':'+pad(d.getMinutes());
+      else if(ts<86400) lab=pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+pad(d.getHours())+'h';
+      else lab=pad(d.getDate())+'/'+pad(d.getMonth()+1);
+      ctx.strokeStyle=colors.grid; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x,pl.y); ctx.lineTo(x,pl.y+pl.h); ctx.stroke();
+      ctx.fillStyle=colors.axis; ctx.fillText(lab, x, pl.y+pl.h+6);
+    }
+  }
+
+  function drawGridLevels(pl){
+    const p=readParams();
+    if(p.upper<=p.lower||p.grids<2) return;
+    const levels=buildLevels(p.lower,p.upper,p.grids,p.mode);
+    const cur=state.last||state.candles.at(-1)?.c||0;
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y-6,pl.w+PAD.right,pl.h+12); ctx.clip();
+    let lastTagY=-99;
+    for(let i=0;i<levels.length;i++){
+      const v=levels[i]; const y=yOf(v);
+      if(y<pl.y-4||y>pl.y+pl.h+4) continue;
+      const showTag=Math.abs(y-lastTagY)>13; if(showTag) lastTagY=y;
+      const isSell=v>cur; const col=isSell?colors.sell:colors.buy;
+      ctx.strokeStyle=col+'55'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(pl.x,y); ctx.lineTo(pl.x+pl.w,y); ctx.stroke(); ctx.setLineDash([]);
+      if(showTag){      // right-axis price tag (in the right padding — candles never cover it)
+        ctx.fillStyle=col; ctx.globalAlpha=.9; ctx.fillRect(pl.x+pl.w+1,y-7,PAD.right-2,14);
+        ctx.globalAlpha=1; ctx.fillStyle='#0a0e15'; ctx.font='9px JetBrains Mono'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(fpx(v), pl.x+pl.w+1+(PAD.right-2)/2, y);
+      }
+    }
+    ctx.restore();
+  }
+  /* left-side Upper/Sell/Buy/Lower badges — drawn AFTER candles so they're never covered */
+  function drawGridLabels(pl){
+    const p=readParams();
+    if(p.upper<=p.lower||p.grids<2) return;
+    const levels=buildLevels(p.lower,p.upper,p.grids,p.mode);
+    const cur=state.last||state.candles.at(-1)?.c||0;
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y-6,pl.w,pl.h+12); ctx.clip();
+    let lastTagY=-99;
+    for(let i=0;i<levels.length;i++){
+      const v=levels[i]; const y=yOf(v);
+      if(y<pl.y-4||y>pl.y+pl.h+4) continue;
+      if(Math.abs(y-lastTagY)<=13) continue; lastTagY=y;
+      const isSell=v>cur; const col=isSell?colors.sell:colors.buy;
+      const txt=i===levels.length-1?'Upper':(i===0?'Lower':(isSell?'Sell':'Buy'));
+      ctx.font='9px Inter'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      const tw=ctx.measureText(txt).width+12;
+      ctx.fillStyle=col; ctx.globalAlpha=.95; roundRect(pl.x+8,y-8,tw,16,4); ctx.fill();
+      ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.fillText(txt, pl.x+14, y+1);
+    }
+    ctx.restore();
+  }
+
+  function paintCandles(pl, mode){
+    const cw=Math.max(1,barW*0.66);
+    const leftIdx=Math.floor(rightIdx-pl.w/barW)-1;
+    const upC = mode==='gray'?'#8b97a8':colors.up;
+    const dnC = mode==='gray'?'#566273':colors.down;
+    for(let i=Math.max(0,leftIdx); i<state.candles.length; i++){
+      const c=state.candles[i]; const x=xOf(i+0.5);
+      if(x<pl.x-cw||x>pl.x+pl.w+cw) continue;
+      const up=c.c>=c.o; const col=up?upC:dnC;
+      const yo=yOf(c.o),yc=yOf(c.c),yh=yOf(c.h),yl=yOf(c.l);
+      ctx.strokeStyle=col; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,yh); ctx.lineTo(x,yl); ctx.stroke();
+      ctx.fillStyle=col; const top=Math.min(yo,yc); let hgt=Math.abs(yc-yo); if(hgt<1)hgt=1;
+      ctx.fillRect(x-cw/2,top,cw,hgt);
+    }
+  }
+  function drawCandles(pl){
+    const p=readParams();
+    const grayMode = state.showGrids && p.upper>p.lower;
+    if(!grayMode){
+      ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.clip();
+      paintCandles(pl,'color'); ctx.restore(); return;
+    }
+    // pass 1: everything gray (out-of-range portions stay gray)
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.clip();
+    paintCandles(pl,'gray'); ctx.restore();
+    // pass 2: colour only inside the GRID ZONE = price band [upper..lower] ∩ period [START..END]
+    let yUp=yOf(p.upper), yLo=yOf(p.lower);
+    const top=Math.max(pl.y,Math.min(yUp,yLo)), bot=Math.min(pl.y+pl.h,Math.max(yUp,yLo));
+    let xS=xOf(idxOfTs(state.startTs)), xE=xOf(idxOfTs(state.endTs));
+    const left=Math.max(pl.x,Math.min(xS,xE)), right=Math.min(pl.x+pl.w,Math.max(xS,xE));
+    if(bot>top && right>left){ ctx.save(); ctx.beginPath(); ctx.rect(left,top,right-left,bot-top); ctx.clip(); paintCandles(pl,'color'); ctx.restore(); }
+  }
+
+  function drawEntryLine(pl){
+    const p=readParams(); const e=p.entry;
+    if(!e||e<=0) return;
+    const y=yOf(e); if(y<pl.y-2||y>pl.y+pl.h+2) return;
+    ctx.save();
+    ctx.strokeStyle='#f0b90b'; ctx.lineWidth=1.3; ctx.setLineDash([6,4]); ctx.globalAlpha=.9;
+    ctx.beginPath(); ctx.moveTo(pl.x,y); ctx.lineTo(pl.x+pl.w,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+    ctx.restore();
+  }
+  /* ENTRY badge — drawn AFTER candles so it's never covered */
+  function drawEntryLabel(pl){
+    const p=readParams(); const e=p.entry;
+    if(!e||e<=0) return;
+    const y=yOf(e); if(y<pl.y-2||y>pl.y+pl.h+2) return;
+    ctx.save();
+    ctx.fillStyle='#f0b90b'; ctx.font='9px Inter'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    const tw=ctx.measureText('ENTRY').width+12;
+    roundRect(pl.x+8,y-8,tw,16,4); ctx.fill();
+    ctx.fillStyle='#1a1405'; ctx.fillText('ENTRY', pl.x+14, y+1);
+    ctx.restore();
+  }
+  let _orderDots=[];   // {x,y,g,avgPx} aggregated markers for hover hit-testing
+  function drawOrders(pl){
+    _orderDots=[];
+    const r=state.result; if(!r||!r.trades||!r.trades.length) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.clip();
+    // Aggregate fills per candle per side → ONE small arrow each (avoids vertical stacking/columns).
+    const groups=new Map();
+    for(const t of r.trades){
+      const idx=Math.floor(idxOfTs(t.t));
+      const key=idx+'|'+t.side;
+      let g=groups.get(key);
+      if(!g){ g={idx,side:t.side,count:0,qty:0,pxQty:0,fee:0,profit:0,tFirst:t.t,tLast:t.t,feeAsset:t.feeAsset}; groups.set(key,g); }
+      g.count++; g.qty+=t.qty; g.pxQty+=t.price*t.qty; g.fee+=t.fee; g.profit+=t.profit||0;
+      if(t.t<g.tFirst)g.tFirst=t.t; if(t.t>g.tLast)g.tLast=t.t;
+    }
+    for(const g of groups.values()){
+      const x=xOf(g.idx+0.5); if(x<pl.x-8||x>pl.x+pl.w+8) continue;
+      const avgPx=g.qty>0? g.pxQty/g.qty : 0; const y=yOf(avgPx);
+      if(y<pl.y-8||y>pl.y+pl.h+8) continue;
+      drawArrow(x,y,g.side==='Buy');
+      _orderDots.push({x,y,g,avgPx});
+    }
+    ctx.restore();
+  }
+  // small Binance-style triangular marker centered on the fill price (buy ▲ green, sell ▼ red)
+  function drawArrow(x,y,up){
+    const w=3.8,h=7;
+    ctx.beginPath();
+    if(up){ ctx.moveTo(x,y-h/2); ctx.lineTo(x-w,y+h/2); ctx.lineTo(x+w,y+h/2); }
+    else  { ctx.moveTo(x,y+h/2); ctx.lineTo(x-w,y-h/2); ctx.lineTo(x+w,y-h/2); }
+    ctx.closePath();
+    ctx.globalAlpha=.95; ctx.fillStyle=up?colors.buy:colors.sell; ctx.fill();
+    ctx.globalAlpha=1; ctx.lineWidth=1; ctx.strokeStyle='rgba(8,12,19,.85)'; ctx.stroke();
+  }
+  /* nearest order marker to a screen point (for hover tooltip) */
+  function orderAt(x,y){
+    let best=null, bd=9*9;
+    for(const d of _orderDots){ const dx=d.x-x, dy=d.y-y, dist=dx*dx+dy*dy; if(dist<bd){ bd=dist; best=d; } }
+    return best;
+  }
+
+  function drawForecast(pl){
+    const baseIdx=idxOfTs(nowSec());
+    const anySel=state.scenario!=='none';
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.clip();
+    // "now" separator
+    const nx=xOf(baseIdx);
+    if(nx<pl.x+pl.w){
+      ctx.fillStyle='rgba(79,156,249,0.035)'; ctx.fillRect(Math.max(pl.x,nx),pl.y,pl.x+pl.w-Math.max(pl.x,nx),pl.h);
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(nx,pl.y); ctx.lineTo(nx,pl.y+pl.h); ctx.stroke(); ctx.setLineDash([]);
+    }
+    function poly(pts,color,alpha,lw){
+      if(pts.length<2) return;
+      ctx.globalAlpha=alpha; ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineJoin='round';
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+      ctx.stroke(); ctx.globalAlpha=1;
+    }
+    const order=['bearish','neutral','optimistic'];     // draw selected last (on top)
+    order.sort((a,b)=> (a===state.scenario?1:0)-(b===state.scenario?1:0));
+    const xEndLine=xOf(idxOfTs(state.endTs));
+    const p=readParams();
+    // grid ZONE for the forecast = price band [lower,upper] over the future [now, END]
+    const haveBand=p.upper>p.lower;
+    const yU=haveBand?yOf(p.upper):pl.y, yL=haveBand?yOf(p.lower):pl.y+pl.h;
+    const zT=Math.max(pl.y,Math.min(yU,yL)), zB=Math.min(pl.y+pl.h,Math.max(yU,yL));
+    const zLx=Math.max(pl.x, nx), zRx=Math.min(pl.x+pl.w, xEndLine);
+    const GRAY='#7d8a9c';
+    for(const key of order){
+      if(!forecast[key]) continue;
+      const fc=forecast[key].candles; const col=SCEN_COLORS[key];
+      const sel = key===state.scenario;
+      const full=[[xOf(baseIdx), yOf(state.last)]];
+      for(let j=0;j<fc.length;j++) full.push([xOf(idxOfTs(fc[j].t)), yOf(fc[j].c)]);
+      // alpha/width by selection state
+      let colA, grayA, lw;
+      if(!anySel){ colA=.55; grayA=.26; lw=1.6; }
+      else if(sel){ colA=1; grayA=.4; lw=2.4; }
+      else { colA=.16; grayA=.1; lw=1.3; }
+      // gray pass — everywhere OUTSIDE the zone (plot minus zone, even-odd clip)
+      if(zRx>zLx && zB>zT){
+        ctx.save(); ctx.beginPath();
+        ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.rect(zLx,zT,zRx-zLx,zB-zT); ctx.clip('evenodd');
+        poly(full, GRAY, grayA, lw); ctx.restore();
+        // colour pass — only INSIDE the zone (in band & before END)
+        ctx.save(); ctx.beginPath(); ctx.rect(zLx,zT,zRx-zLx,zB-zT); ctx.clip();
+        poly(full, col, colA, lw); ctx.restore();
+      } else {
+        poly(full, GRAY, grayA, lw);   // no valid zone → all grey
+      }
+    }
+    ctx.restore();
+  }
+  /* nearest scenario path to a screen point (for click-select) */
+  function scenarioAt(x,y){
+    if(!state.forecast||!forecast) return null;
+    const baseIdx=idxOfTs(nowSec()); if(x < xOf(baseIdx)-2) return null;
+    let best=null,bd=8;
+    for(const key in forecast){
+      const fc=forecast[key].candles;
+      for(let j=0;j<fc.length;j++){
+        const px=xOf(idxOfTs(fc[j].t)); if(px<x-barW||px>x+barW) continue;
+        const py=yOf(fc[j].c); const d=Math.hypot(px-x,py-y);
+        if(d<bd){ bd=d; best=key; }
+      }
+    }
+    return best;
+  }
+
+  function drawCurrentPrice(pl){
+    const cur=state.last; if(cur==null) return; const y=yOf(cur);
+    if(y<pl.y||y>pl.y+pl.h) return;
+    ctx.strokeStyle='#e9edf4'; ctx.lineWidth=1; ctx.setLineDash([2,3]); ctx.globalAlpha=.5;
+    ctx.beginPath(); ctx.moveTo(pl.x,y); ctx.lineTo(pl.x+pl.w,y); ctx.stroke(); ctx.globalAlpha=1; ctx.setLineDash([]);
+    const up=(state.candles.at(-1)?.c||cur)>=(state.candles.at(-1)?.o||cur);
+    ctx.fillStyle=up?colors.up:colors.down; ctx.fillRect(pl.x+pl.w+1,y-8,PAD.right-2,16);
+    ctx.fillStyle='#fff'; ctx.font='10px JetBrains Mono'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(fpx(cur), pl.x+pl.w+1+(PAD.right-2)/2, y);
+  }
+
+  function drawPeriodLines(pl){
+    if(!state.candles.length) return;
+    const sx=xOf(idxOfTs(state.startTs)), ex=xOf(idxOfTs(state.endTs));
+    ctx.save(); ctx.beginPath(); ctx.rect(pl.x,pl.y,pl.w,pl.h); ctx.clip();
+    ctx.fillStyle='rgba(240,185,11,0.035)';
+    const a=clamp(sx,pl.x,pl.x+pl.w), b=clamp(ex,pl.x,pl.x+pl.w);
+    if(b>a) ctx.fillRect(a,pl.y,b-a,pl.h);
+    drawHandle(sx,pl,colors.buy,'START');
+    drawHandle(ex,pl,colors.down,'END');
+    ctx.restore();
+  }
+  function drawHandle(x,pl,col,label){
+    if(x<pl.x-2){ // off left: pinned arrow
+      ctx.fillStyle=col; ctx.font='9px Inter'; ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.fillText('◀ '+label, pl.x+4, pl.y+ (label==='START'?2:16));
+      return;
+    }
+    if(x>pl.x+pl.w+2){
+      ctx.fillStyle=col; ctx.font='9px Inter'; ctx.textAlign='right'; ctx.textBaseline='top';
+      ctx.fillText(label+' ▶', pl.x+pl.w-4, pl.y+ (label==='START'?2:16));
+      return;
+    }
+    ctx.strokeStyle=col; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(x,pl.y); ctx.lineTo(x,pl.y+pl.h); ctx.stroke();
+    ctx.fillStyle=col; roundRect(x-22,pl.y+2,44,15,3); ctx.fill();
+    ctx.fillStyle='#06140d'; ctx.font='8px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label,x,pl.y+10);
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,pl.y+pl.h-14,4,0,7); ctx.fill();
+  }
+
+  function drawCrosshair(pl){
+    if(mouse.x<pl.x||mouse.x>pl.x+pl.w) return;
+    ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(mouse.x,pl.y); ctx.lineTo(mouse.x,pl.y+pl.h);
+    ctx.moveTo(pl.x,mouse.y); ctx.lineTo(pl.x+pl.w,mouse.y); ctx.stroke(); ctx.setLineDash([]);
+    const pr=pOf(mouse.y);
+    ctx.fillStyle='#2a3445'; ctx.fillRect(pl.x+pl.w+1,mouse.y-8,PAD.right-2,16);
+    ctx.fillStyle='#fff'; ctx.font='10px JetBrains Mono'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(fpx(pr),pl.x+pl.w+1+(PAD.right-2)/2,mouse.y);
+    const idx=Math.floor(iOf(mouse.x));
+    if(idx>=0&&idx<state.candles.length) updateOHLC(state.candles[idx]);
+  }
+
+  function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+  /* ---- interaction ---- */
+  function overAxis(x){ const pl=plot(); return x>=pl.x+pl.w; }
+  function handleAt(x){
+    const sx=xOf(idxOfTs(state.startTs)), ex=xOf(idxOfTs(state.endTs));
+    if(Math.abs(x-sx)<7) return 'start';
+    if(Math.abs(x-ex)<7) return 'end';
+    return null;
+  }
+  /* horizontal grid-bound (upper/lower) hit-test by Y */
+  function boundAt(y){
+    if(!state.showGrids) return null;
+    const p=readParams(); if(p.upper<=p.lower) return null;
+    if(Math.abs(y-yOf(p.upper))<6) return 'upper';
+    if(Math.abs(y-yOf(p.lower))<6) return 'lower';
+    return null;
+  }
+  host.addEventListener('mousedown',e=>{
+    const r=host.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+    // Shift+drag → move whole grid band vertically (only when Entry price is enabled;
+    // otherwise entry = current price and vertical grid moves are not meaningful)
+    if(e.shiftKey && state.showGrids && entryOn()){
+      const p=readParams();
+      if(p.upper>p.lower){
+        const curE=p.entry||refPrice();
+        drag={type:'gridv',startY:y,startUpper:p.upper,startLower:p.lower,startEntry:curE};
+        autoScale=false; host.style.cursor='grabbing'; return;
+      }
+    }
+    // Ctrl/Cmd+drag → move whole period horizontally (fixed duration)
+    if(e.ctrlKey||e.metaKey){
+      drag={type:'periodh',startX:x,startStart:state.startTs,startEnd:state.endTs};
+      host.style.cursor='ew-resize'; return;
+    }
+    if(overAxis(x)){ drag={type:'vscale',startY:y,startMin:priceMin,startMax:priceMax}; autoScale=false; host.style.cursor='ns-resize'; return; }
+    const h=handleAt(x);
+    if(h){ drag={type:h}; host.style.cursor='ew-resize'; return; }
+    // Alt required for upper/lower line drag (avoids accidental catches)
+    if(e.altKey){ const b=boundAt(y); if(b){ drag={type:b}; host.style.cursor='ns-resize'; return; } }
+    drag={type:'pan',startX:x,startY:y,startRight:rightIdx,startMin:priceMin,startMax:priceMax,moved:false}; host.style.cursor='grabbing';
+  });
+  window.addEventListener('mousemove',e=>{
+    const r=host.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+    mouse.x=x; mouse.y=y; mouse.on=(x>=0&&x<=W&&y>=0&&y<=H);
+    if(drag.type==='pan'){
+      rightIdx=drag.startRight-(x-drag.startX)/barW; clampScroll(); maybeLoadOlder();
+      if(Math.abs(y-drag.startY)>4 || drag.moved){
+        drag.moved=true; autoScale=false;
+        const pl=plot(); const k=(drag.startMax-drag.startMin)/pl.h;
+        const dyp=(y-drag.startY)*k; priceMin=drag.startMin+dyp; priceMax=drag.startMax+dyp;
+      }
+    }else if(drag.type==='vscale'){
+      const f=clamp(1+(y-drag.startY)*0.004,0.2,5);
+      const c=(drag.startMin+drag.startMax)/2, half=(drag.startMax-drag.startMin)/2*f;
+      priceMin=c-half; priceMax=c+half;
+    }else if(drag.type==='start'||drag.type==='end'){
+      moveHandle(drag.type, iOf(x));
+    }else if(drag.type==='upper'||drag.type==='lower'){
+      moveBound(drag.type, pOf(y));
+    }else if(drag.type==='gridv'){
+      const pl=plot(); const d=(drag.startY-y)*(priceMax-priceMin)/pl.h;
+      moveGridBand(drag.startLower+d, drag.startUpper+d, drag.startEntry+d);
+    }else if(drag.type==='periodh'){
+      const dTs=((x-drag.startX)/barW)*tfSec(); movePeriod(dTs);
+    }else{
+      let cur='crosshair';
+      if(e.shiftKey&&state.showGrids&&entryOn()) cur='grab';
+      else if(e.ctrlKey||e.metaKey) cur='ew-resize';
+      else if(overAxis(x)) cur='ns-resize';
+      else if(handleAt(x)) cur='ew-resize';
+      else if(e.altKey&&boundAt(y)) cur='ns-resize';
+      else if(scenarioAt(x,y)) cur='pointer';
+      host.style.cursor=cur;
+      // order hover tooltip
+      const tip=$('#orderTip');
+      if(state.showOrders && mouse.on){
+        const od=orderAt(x,y);
+        if(od){ showOrderTip(od,x,y); cur='pointer'; host.style.cursor=cur; }
+        else if(tip){ tip.classList.remove('show'); }
+      } else if(tip){ tip.classList.remove('show'); }
+    }
+    if(drag.type||mouse.on) draw();
+  });
+  function showOrderTip(m,x,y){
+    const tip=$('#orderTip'); if(!tip) return;
+    const g=m.g; const base=state.symbol.replace('USDT','');
+    const feeR=(readParams().fee||0);
+    const d1=new Date(g.tFirst*1000), d2=new Date(g.tLast*1000);
+    const ft=d=>`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const timeStr = g.count>1 ? `${ft(d1)}–${pad(d2.getHours())}:${pad(d2.getMinutes())}` : `${ft(d1)}:${pad(d1.getSeconds())}`;
+    const col=g.side==='Buy'?'#16c784':'#ea3943';
+    let rows=`<div class="ot-r">${g.count>1?'Time span':'Time'}<b>${timeStr}</b></div>`+
+      `<div class="ot-r">${g.count>1?'Avg price':'Price'}<b>${fmt(m.avgPx,state.dec)}</b></div>`+
+      `<div class="ot-r">Volume<b>${fmt(g.qty,3)} ${base}</b></div>`+
+      `<div class="ot-r">Value<b>${fmt(g.pxQty)} USDT</b></div>`+
+      `<div class="ot-r">Fee<b>${fmt(g.fee, g.feeAsset==='USDT'?3:5)} ${g.feeAsset||'USDT'} (${fmt(feeR,2)}%)</b></div>`;
+    if(g.side==='Sell') rows+=`<div class="ot-r">Grid profit<b style="color:#16c784">+${fmt(g.profit)} USDT</b></div>`;
+    const title = g.count>1 ? `${g.count} ${g.side} fills` : `${g.side} order`;
+    tip.innerHTML=`<div class="ot-h"><span class="dot" style="background:${col}"></span>${title}</div>`+rows;
+    tip.classList.add('show');
+    const tw=tip.offsetWidth||170, th=tip.offsetHeight||110;
+    let lx=x+14, ty=y-th-8;
+    if(lx+tw>W) lx=x-tw-14; if(lx<0) lx=4;
+    if(ty<0) ty=y+14;
+    tip.style.left=lx+'px'; tip.style.top=ty+'px';
+  }
+  window.addEventListener('mouseup',()=>{
+    const t=drag.type;
+    if(t==='start'||t==='end'){ drag={type:null}; host.style.cursor='crosshair'; commitPeriodFromDrag(); }
+    else if(t==='periodh'){ drag={type:null}; host.style.cursor='crosshair'; refreshGridData(true); }
+    else if(t==='upper'||t==='lower'||t==='gridv'){ drag={type:null}; host.style.cursor='crosshair'; recomputeMetrics(); scheduleOpt(); }
+    else if(t){ drag={type:null}; host.style.cursor='crosshair'; }
+  });
+  // scenario selection by click (only when not dragged far)
+  host.addEventListener('click',e=>{
+    const r=host.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+    const key=scenarioAt(x,y);
+    if(key) selectScenario(key);
+  });
+  host.addEventListener('mouseleave',()=>{ mouse.on=false; const tip=$('#orderTip'); if(tip) tip.classList.remove('show'); updateOHLC(); draw(); });
+  host.addEventListener('dblclick',e=>{
+    const r=host.getBoundingClientRect(); const x=e.clientX-r.left;
+    if(overAxis(x)){ autoScale=true; draw(); }
+  });
+  host.addEventListener('wheel',e=>{
+    e.preventDefault();
+    // Ctrl/Cmd + wheel → adjust number of grids
+    if(e.ctrlKey||e.metaKey){
+      const inp=$('#grids'); let g=Math.round(+inp.value||2);
+      g=clamp(g+(e.deltaY<0?1:-1),2,170);
+      inp.value=g; $('#gridsSlider').value=g;
+      recomputeMetrics(); scheduleOpt();
+      return;
+    }
+    const r=host.getBoundingClientRect(); const x=e.clientX-r.left;
+    const idxAt=iOf(x); const factor=e.deltaY<0?1.12:0.89;
+    barW=clamp(barW*factor,0.6,80);
+    const pl=plot(); rightIdx=idxAt+(pl.x+pl.w-x)/barW; clampScroll(); maybeLoadOlder(); draw();
+  },{passive:false});
+
+  // touch
+  let tStart=null,tDist=0,tBar=0;
+  host.addEventListener('touchstart',e=>{
+    if(e.touches.length===1){ const t=e.touches[0]; const r=host.getBoundingClientRect(); const x=t.clientX-r.left, y=t.clientY-r.top; const h=handleAt(x);
+      tStart={x,y,right:rightIdx,handle:h,min:priceMin,max:priceMax,moved:false}; }
+    else if(e.touches.length===2){ tDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); tBar=barW; }
+  },{passive:true});
+  host.addEventListener('touchmove',e=>{
+    const r=host.getBoundingClientRect();
+    if(e.touches.length===1&&tStart){ const x=e.touches[0].clientX-r.left, y=e.touches[0].clientY-r.top;
+      if(tStart.handle){ moveHandle(tStart.handle,iOf(x)); }
+      else{ rightIdx=tStart.right-(x-tStart.x)/barW; clampScroll(); maybeLoadOlder();
+        if(Math.abs(y-tStart.y)>5||tStart.moved){ tStart.moved=true; autoScale=false; const pl=plot(); const k=(tStart.max-tStart.min)/pl.h; const dyp=(y-tStart.y)*k; priceMin=tStart.min+dyp; priceMax=tStart.max+dyp; } }
+      draw();
+    }else if(e.touches.length===2){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); barW=clamp(tBar*(d/tDist),0.6,80); clampScroll(); draw(); }
+  },{passive:true});
+  host.addEventListener('touchend',()=>{ if(tStart&&tStart.handle) commitPeriodFromDrag(); tStart=null; });
+
+  function clampScroll(){ const pl=plot(); const minRight=pl.w/barW*0.4; const maxRight=totalRightLimit(); rightIdx=clamp(rightIdx,minRight,maxRight); }
+  function moveHandle(type,idx){
+    let ts=tsOfIdx(idx); const now=nowSec();
+    const futureOK = state.forecast;   // forecast mode alone enables future END (no preset/scenario required)
+    if(type==='start'){ ts=clamp(ts, now-MIN_HISTORY, Math.min(state.endTs-60, now-60)); state.startTs=ts; }
+    else{
+      // END is only the metrics cutoff — it may be dragged freely in forecast mode but
+      // NEVER reshapes the scenario lines (those are built solely from the Projection horizon).
+      const hiEnd = futureOK ? now+MAX_FUTURE : now;
+      ts=clamp(ts, state.startTs+60, hiEnd);
+      state.endTs=ts; state.endLive=(now-ts)<=tfSec()*1.5 && ts<=now+1;
+    }
+    syncDateInputsFromTs(); recomputeMetricsLive(); draw();
+  }
+  function moveBound(type, price){
+    if(price<=0) return;
+    const cur=refPrice();
+    if(type==='upper'){ const v=clamp(price, cur, cur*2); $('#upper').value=nf(v); }      // high: reference … +100%
+    else { const v=clamp(price, cur*0.5, cur); $('#lower').value=nf(v); }                   // low: −50% … reference
+    refreshRangeSliderTags(); recomputeMetricsLive();
+  }
+  function moveGridBand(lo, up, entry){
+    if(lo<=0 || up<=lo) return;
+    $('#lower').value=nf(lo); $('#upper').value=nf(up);
+    if(entryOn() && entry>0) $('#entry').value=nf(entry);   // entry moves with the band only when enabled
+    refreshRangeSliderTags(); recomputeMetricsLive();
+  }
+  function movePeriod(dTs){
+    const dur=drag.startEnd-drag.startStart; const now=nowSec();
+    const futureOK=state.forecast;
+    const maxEnd=futureOK?now+MAX_FUTURE:now; const minStart=now-MIN_HISTORY;
+    let s=clamp(drag.startStart+dTs, minStart, now-60);   // START never crosses "now"
+    let e=s+dur;
+    if(e>maxEnd) e=maxEnd;
+    if(e<s+60) e=s+60;
+    state.startTs=s; state.endTs=e; state.endLive=(now-e)<=tfSec()*1.5 && e<=now+1;
+    syncDateInputsFromTs();
+  }
+  function rebuildForecastNow(){ forecast=buildForecastObj(); }
+
+  /* lazy-load older candles when scanning left (real Binance history / synthetic in sim) */
+  async function maybeLoadOlder(){
+    if(loadingOlder||histExhausted||!state.candles.length) return;
+    const pl=plot(); const leftIdx=rightIdx-pl.w/barW;
+    if(leftIdx>40) return;
+    loadingOlder=true;
+    const before=state.candles[0].t;
+    try{
+      const older=await Feed.loadOlder(state.tf, before, 1000);
+      if(!older||!older.length){ histExhausted=!state.sim; loadingOlder=false; return; }
+      let batch=older.filter(c=>c.t<before);
+      if(!batch.length){ histExhausted=!state.sim; loadingOlder=false; return; }
+      if(state.sim){
+        const scale=state.candles[0].o/batch[batch.length-1].c;
+        if(isFinite(scale)&&scale>0&&Math.abs(scale-1)>1e-6) batch=batch.map(c=>({t:c.t,o:c.o*scale,h:c.h*scale,l:c.l*scale,c:c.c*scale}));
+      }
+      const N=batch.length;
+      state.candles=batch.concat(state.candles);
+      rightIdx+=N;
+      loadingOlder=false; draw();
+    }catch(err){ loadingOlder=false; }
+  }
+
+  return {
+    init(){ resize(); window.addEventListener('resize',()=>{resize();drawSpark(state.result?.equity,readParams().invest);});
+      if(window.ResizeObserver){ try{ new ResizeObserver(()=>resize()).observe(host); }catch(e){} }
+      fit(); },
+    draw, fit, resize,
+    goNow(){ const pl=plot(); const visible=pl.w/barW; rightIdx=idxOfTs(nowSec())+visible*0.12; autoScale=true; clampScroll(); draw(); },
+    setForecast(f){ forecast=f; }, getForecast(){ return forecast; },
+    rebuildForecast(){ forecast=buildForecastObj(); },
+    resetHistory(){ loadingOlder=false; histExhausted=false; },
+    ensureLastVisible(){ const pl=plot(); const visible=pl.w/barW; if(rightIdx<state.candles.length) rightIdx=state.candles.length+Math.min(10,visible*0.1); }
+  };
+})();
+
+/* ===========================================================
+   UI — params, render, bindings
+   =========================================================== */
+function entryOn(){ return $('#entryEnabled') && $('#entryEnabled').checked; }
+/* reference price for range %, slider mapping and constraints */
+function refPrice(){
+  if(entryOn()){ const e=parseFloat($('#entry').value); if(isFinite(e)&&e>0) return e; }
+  return state.last||72;
+}
+function readParams(){
+  const on=entryOn();
+  const ev=parseFloat($('#entry').value);
+  return {
+    lower:+$('#lower').value, upper:+$('#upper').value,
+    grids:Math.round(+$('#grids').value), mode:$('#mode').value,
+    invest:+$('#invest').value, fee:+$('#fee').value,
+    entry: (on && isFinite(ev)&&ev>0)? ev : 0,
+    sellAllOnStop: $('#sellAllStop') ? $('#sellAllStop').checked : true,
+    slipBps: $('#slip') ? Math.max(0,+$('#slip').value||0) : 0,
+  };
+}
+
+/* index of a timestamp inside the grid dataset (nearest) */
+function gridIdxOfTs(ts){
+  const g=state.gridData; if(!g||!g.candles.length) return 0;
+  const c=g.candles; const ivSec=g.ivSec;
+  let i=Math.round((ts-c[0].t)/ivSec);
+  return clamp(i,0,c.length-1);
+}
+
+/* sync version: backtest on cached grid dataset (+ optional scenario future), render everything */
+/* Build the candle series used for metrics/optimization over [startTs,endTs].
+   When END is in the future AND a scenario is selected, the real data (up to now)
+   is extended with the selected scenario's projected candles — so both the metrics
+   and the optimizer evaluate the SAME real+projected path. */
+function buildEvalSeries(){
+  const g=state.gridData; if(!g||g.candles.length<2) return null;
+  const now=nowSec();
+  const sIdx=gridIdxOfTs(state.startTs), eIdx=gridIdxOfTs(Math.min(state.endTs,now));
+  let series=g.candles, s0=sIdx, e0=eIdx;
+  const fut=scenarioFutureCandles();
+  const usingFuture = fut.length>0 && state.endTs>now;
+  if(usingFuture){ series=g.candles.slice(sIdx,eIdx+1).concat(fut); s0=0; e0=series.length-1; }
+  const usePin = g.stopPx && isFinite(g.stopPx) && g.stopPx>0 && !usingFuture && state.endTs<=now;
+  return {series,s0,e0,usePin,stopPx:g.stopPx,usingFuture,futureLen:usingFuture?fut.length:0};
+}
+function recomputeMetrics(){
+  const p=readParams();
+  const ev=buildEvalSeries();
+  if(!ev){ Chart.draw(); return; }
+  if(ev.usePin) p.stopPrice=ev.stopPx;
+  const res=backtest(ev.series, ev.s0, ev.e0, p);
+  res._future = ev.futureLen;
+  state.result=res;
+  renderStats(res,p);
+  if(_mcLast) setMcStale(mcAvailable());
+  updateMcState();
+  Chart.draw();
+}
+/* lighter live recompute (throttled) */
+let _liveT=0;
+function recomputeMetricsLive(){ const n=performance.now(); if(n-_liveT<120) return; _liveT=n; recomputeMetrics(); scheduleOpt(); }
+
+/* ---- async: (re)fetch the grid dataset for current period if needed ---- */
+let _gridReqId=0;
+async function refreshGridData(force){
+  const now=nowSec();
+  if(state.endLive) state.endTs=now;
+  let sTs=state.startTs, eTs=Math.min(state.endTs, now);   // real data only up to now
+  if(eTs<=sTs){ sTs=eTs-900; state.startTs=sTs; }
+  const durSec=eTs-sTs;
+  const [iv,ivSec]=pickGridInterval(durSec);
+  const g=state.gridData;
+  const sameWindow = g && g.iv===iv && Math.abs(g.startTs-sTs)<=ivSec && (state.endLive? (now-g.endTs)<ivSec*1.2 : Math.abs(g.endTs-eTs)<=ivSec);
+  if(sameWindow && !force){ recomputeMetrics(); scheduleOpt(); return; }
+
+  const badge=$('#gridDataBadge');
+  badge.className='grid-data-badge loading'; badge.textContent='grid data: loading…';
+  const reqId=++_gridReqId;
+  const {candles,sim}=await Feed.loadRange(iv,ivSec,sTs,eTs);
+  if(reqId!==_gridReqId) return;   // superseded
+  // Pin the exact stop price from a 1s kline at the period end (only for a fixed past end).
+  let stopPx=null;
+  if(!sim && !state.endLive && eTs < now-2){
+    stopPx = await Feed.closeAt(eTs);
+    if(reqId!==_gridReqId) return;
+  }
+  state.gridData={startTs:sTs,endTs:candles.length?candles[candles.length-1].t:eTs,iv,ivSec,candles,sim,stopPx};
+  const label=`${iv} ${sim?'(sim)':'(real)'} · ${fmtDur(durSec)} · ${candles.length} pts`;
+  badge.className='grid-data-badge'+(sim?' sim':''); badge.textContent='grid data: '+label;
+  { const sw=$('#simWarn'); if(sw) sw.style.display = sim ? 'flex' : 'none'; }
+  { const sb=$('#statbar'); if(sb) sb.classList.toggle('simdata', !!sim); }
+  { const cn=$('#coarseNote'); if(cn) cn.classList.toggle('hidden', sim || iv==='1s'); }
+  recomputeMetrics(); scheduleOpt();
+}
+const debouncedRefresh = debounce(()=>refreshGridData(false), 280);
+function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
+function renderStats(r,p){
+  const inv=p.invest;
+  const base=state.symbol.replace('USDT','');
+  const stats=[
+    ['Total Investment', fmt(inv)+' USDT', ''],
+    ['Total Profit', `${sign(r.total)}${fmt(r.total)} <small>(${sign(r.total)}${fmt(r.total/inv*100)}%)</small>`, r.total>=0?'pos':'neg'],
+    ['Grid Profit', `${sign(r.gridProfit)}${fmt(r.gridProfit)} <small>(${fmt(r.gridProfit/inv*100)}%)</small>`, 'pos'],
+    ['Floating Profit', `${sign(r.floating)}${fmt(r.floating)} <small>(${fmt(r.floating/inv*100)}%)</small>`, r.floating>=0?'pos':'neg'],
+    ['Profit Per Grid', fmt(r.profitPerGridPct)+'%', r.profitPerGridPct>=0?'pos':'neg'],
+    ['Bot Start Price', fmt(r.startPrice)+'', ''],
+    ['Initial Buy Qty', fmt(r.initialBuyQty,3)+' '+base, ''],
+    ['Initial Entry', fmt(r.entryPrice)+'', ''],
+    ['Matched Trades', String(r.matched), ''],
+    ['Qty/Order', fmt(r.qtyPerOrder,3)+' '+base, ''],
+    ['Duration', r.days>=1? fmt(r.days,2)+' d' : (r.days*24>=1? fmt(r.days*24,1)+' h':fmt(r.days*24*60,0)+' m'), ''],
+  ];
+  $('#statbar').innerHTML=stats.map(([k,v,c])=>`<div class="stat"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
+
+  const finalBal=inv+r.total, net=r.total;
+  $('#tsInit').textContent=fmt(inv);
+  $('#tsFinal').textContent=fmt(finalBal); $('#tsFinal').className='v '+(finalBal>=inv?'pos':'neg');
+  $('#tsFees').textContent=fmt(r.totalFees);
+  $('#tsNet').textContent=`${sign(net)}${fmt(net)}`; $('#tsNet').className='v '+(net>=0?'pos':'neg');
+  $('#tsApr').textContent=''; setAprCell('#tsApr', r.apr, r.days, true);
+  $('#tsPpd').textContent=`${sign(r.days>0?r.total/r.days:0)}$${fmt(r.days>0?r.total/r.days:0)}`;
+  $('#tsBuy').textContent=r.buyTrades; $('#tsSell').textContent=r.sellTrades;
+  $('#tsOor').textContent=fmt(r.outRange,1)+'%'; $('#tsOor').className='v '+(r.outRange>1?'neg':'pos');
+  // stop / exit
+  $('#tsStop').textContent=fmt(r.stopPrice)+' USDT';
+  $('#tsSellQty').textContent=fmt(r.sellQtyStop,3)+' '+base;
+  $('#tsAvgSell').textContent=fmt(r.avgSellStop)+' USDT';
+  $('#tsBalStop').innerHTML = r.sellAll
+    ? `${fmt(r.balanceStopUsdt)} USDT`
+    : `${fmt(r.balanceStopUsdt)} USDT + ${fmt(r.balanceStopSol,3)} ${base}`;
+  {
+    const s=new Date(state.startTs*1000), e=new Date(state.endTs*1000);
+    const ds=d=>`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    $('#tsPeriod').textContent=`${ds(s)} → ${ds(e)}`;
+  }
+
+  setBar('#effVol','#effVolBar', r.atrPct, fmt(r.atrPct,2)+'%', clamp(r.atrPct/2*100,3,100));
+  setBar('#effEff','#effEffBar', r.gridEff, fmt(r.gridEff,1)+' pts', clamp(r.gridEff*4,3,100));
+  setBar('#effCov','#effCovBar', r.rangeCov, fmt(r.rangeCov,1)+'%', r.rangeCov);
+  setBar('#effFee','#effFeeBar', r.feeImpact, fmt(r.feeImpact,1)+'%', r.feeImpact);
+  $('#reco').innerHTML='Recommendation: '+recommend(r,p);
+
+  // Time in range — buy/sell/out segments with durations
+  $('#tirVal').textContent=fmt(r.inRange,1)+'% in range';
+  const tot=Math.max(1e-9, r.buyTimeSec+r.sellTimeSec+r.oorTimeSec);
+  const bp=r.buyTimeSec/tot*100, sp=r.sellTimeSec/tot*100, op=r.oorTimeSec/tot*100;
+  $('#tirG').style.width=bp+'%'; $('#tirR').style.width=sp+'%'; $('#tirO').style.width=op+'%';
+  $('#tirBuy').textContent=r.buyTrades; $('#tirSell').textContent=r.sellTrades;
+  state._tir={buy:{pct:bp,sec:r.buyTimeSec},sell:{pct:sp,sec:r.sellTimeSec},oor:{pct:op,sec:r.oorTimeSec}};
+
+  $('#mTotal').textContent=`${sign(r.total)}$${fmt(r.total)}`; $('#mTotal').className='v '+(r.total>=0?'pos':'neg');
+  $('#mTotalPct').textContent=`${sign(r.total)}${fmt(r.total/inv*100)}%`;
+  const pp=$('#pnlPanel'); if(pp){ pp.classList.toggle('pos', r.total>=0); pp.classList.toggle('neg', r.total<0); }
+  setTirInfo(null);
+  $('#mGrid').textContent=`+$${fmt(r.gridProfit)}`;
+  $('#mFloat').textContent=`${sign(r.floating)}$${fmt(r.floating)}`; $('#mFloat').className='v '+(r.floating>=0?'pos':'neg');
+  setAprCell('#mApr', r.apr, r.days, true);
+  $('#mRisk').textContent= r.maxDD>0.01? fmt(r.riskRatio,2):'∞';
+  $('#mDD').textContent=`-$${fmt(r.maxDD)}`;
+
+  $('#histGP').textContent=`${sign(r.gridProfit)}${fmt(r.gridProfit)} USDT`;
+  $('#histMatched').textContent=r.matched;
+  renderHistory(r.pairs);
+
+  $('#profitPerGrid').textContent=fmt(r.profitPerGridPct,2)+'%';
+  $('#gridsVal').textContent=p.grids;
+  $('#durationVal').textContent = r.days>=1? fmt(r.days,2)+' days' : (r.days*24>=1? fmt(r.days*24,1)+' h' : fmt(r.days*24*60,0)+' min');
+
+  drawSpark(r.equity, inv);
+}
+function setBar(valSel,barSel,raw,text,pct){ $(valSel).textContent=text; $(barSel).style.width=clamp(pct,0,100)+'%'; }
+
+function recommend(r,p){
+  if(!state.gridData||state.gridData.candles.length<3) return 'Loading market data…';
+  if(r.atrPct<0.05) return 'Very low volatility. Use <b>fewer grids</b> with wider spacing to beat fees.';
+  if(r.atrPct>0.4) return 'High volatility. <b>More grids</b> capture more swings — widen the price range too.';
+  if(r.outRange>15) return 'Price often <b>leaves the range</b>. Widen low/high bounds to reduce idle time.';
+  if(r.feeImpact>50) return 'Fees eat most profit. <b>Increase spacing</b> (fewer grids) or lower fee tier.';
+  if(r.rangeCov<40) return 'Range is much wider than price movement. <b>Tighten the range</b> for denser fills.';
+  return 'Settings look balanced for current conditions. Fine-tune grids for a touch more density.';
+}
+
+function renderHistory(pairs){
+  const b=$('#histBody');
+  const base=state.symbol.replace('USDT','');
+  if(!pairs||!pairs.length){ b.innerHTML='<tr><td colspan="5" class="empty">No matched trades in this period</td></tr>'; return; }
+  b.innerHTML=pairs.slice(0,120).map(p=>{
+    const d=new Date(p.sellT*1000);
+    const bd=new Date(p.buyT*1000);
+    const tt=`${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const btt=`${pad(bd.getMonth()+1)}/${pad(bd.getDate())} ${pad(bd.getHours())}:${pad(bd.getMinutes())}`;
+    const fees=`${fmt(p.buyFee,4)} ${p.buyFeeAsset} + ${fmt(p.sellFee,4)} USDT`;
+    return `<tr title="Buy ${btt} @ ${pf(p.buyP)} → Sell @ ${pf(p.sellP)}">`+
+      `<td>${tt}</td>`+
+      `<td><span class="side-buy">${pf(p.buyP)}</span> → <span class="side-sell">${pf(p.sellP)}</span></td>`+
+      `<td>${fmt(p.qty,3)} ${base}</td>`+
+      `<td style="font-size:9.5px;color:var(--txt-3)">${fees}</td>`+
+      `<td class="side-buy">+${fmt(p.profit)}</td></tr>`;
+  }).join('');
+}
+
+/* PnL curve — per-segment green(+)/red(-) like Binance, with hover readout */
+let _spark={eq:null,inv:0}, _sparkGeo=null;
+function setSparkVal(v){
+  const el=$('#sparkVal'); if(!el) return;
+  if(v==null){ el.textContent='—'; el.className='spark-val'; return; }
+  el.textContent=`${sign(v)}$${fmt(Math.abs(v))}`;
+  el.className='spark-val '+(v>=0?'pos':'neg');
+}
+function drawSpark(eq,inv){ _spark={eq,inv}; renderSpark(null); }
+function renderSpark(hoverPx){
+  const eq=_spark.eq, inv=_spark.inv;
+  const cv=$('#spark'), ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1, w=cv.parentElement.clientWidth, h=cv.parentElement.clientHeight;
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  cv.width=w*dpr; cv.height=h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  if(!eq||eq.length<2){ _sparkGeo=null; setSparkVal(null); return; }
+  let mn=Math.min(...eq,0), mx=Math.max(...eq,0); if(mx-mn<0.01){mx+=1;mn-=1;}
+  const padTop=8, padBot=6;
+  const X=i=>i/(eq.length-1)*w, Y=v=>padTop+(mx-v)/(mx-mn)*(h-padTop-padBot);
+  const zeroY=Y(0);
+  _sparkGeo={w,h,mn,mx,padTop,padBot,zeroY,len:eq.length,X,Y};
+  // zero line
+  ctx.strokeStyle='#2a3445'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(0,zeroY); ctx.lineTo(w,zeroY); ctx.stroke(); ctx.setLineDash([]);
+  // build interpolated points crossing zero so fill/line color split cleanly
+  const pts=[{x:X(0),v:eq[0]}];
+  for(let i=1;i<eq.length;i++){
+    const v0=eq[i-1], v1=eq[i], x0=X(i-1), x1=X(i);
+    if((v0<0&&v1>0)||(v0>0&&v1<0)){ const tcross=v0/(v0-v1); pts.push({x:x0+(x1-x0)*tcross,v:0}); }
+    pts.push({x:x1,v:v1});
+  }
+  function fillRun(run, positive){
+    if(run.length<2) return;
+    ctx.beginPath(); ctx.moveTo(run[0].x,zeroY);
+    for(const pt of run) ctx.lineTo(pt.x,Y(pt.v));
+    ctx.lineTo(run[run.length-1].x,zeroY); ctx.closePath();
+    const g=ctx.createLinearGradient(0, positive?Y(mx):zeroY, 0, positive?zeroY:Y(mn));
+    g.addColorStop(0, positive?'rgba(22,199,132,.34)':'rgba(234,57,67,.06)');
+    g.addColorStop(1, positive?'rgba(22,199,132,.04)':'rgba(234,57,67,.34)');
+    ctx.fillStyle=g; ctx.fill();
+  }
+  let run=[pts[0]]; let curPos=pts[0].v>=0;
+  for(let i=1;i<pts.length;i++){
+    const pos=pts[i].v>=0;
+    run.push(pts[i]);
+    if(pos!==curPos){ fillRun(run, curPos); run=[pts[i]]; curPos=pos; }
+  }
+  fillRun(run, curPos);
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1], b=pts[i];
+    const pos=(a.v+b.v)/2>=0;
+    ctx.strokeStyle=pos?'#16c784':'#f6465d'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(a.x,Y(a.v)); ctx.lineTo(b.x,Y(b.v)); ctx.stroke();
+  }
+  // hover marker + value readout
+  let hv=eq[eq.length-1];
+  if(hoverPx!=null){
+    const idx=clamp(Math.round(hoverPx/w*(eq.length-1)),0,eq.length-1);
+    hv=eq[idx]; const hx=X(idx), hy=Y(hv);
+    ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(hx,padTop); ctx.lineTo(hx,h-padBot); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(hx,hy,3.2,0,7); ctx.fillStyle=hv>=0?'#16c784':'#f6465d'; ctx.fill();
+    ctx.lineWidth=1.2; ctx.strokeStyle='#0a0e15'; ctx.stroke();
+  }
+  setSparkVal(hv);
+}
+
+/* ---- chart top readouts ---- */
+function updateTop(){
+  const c=state.candles.at(-1); if(!c) return;
+  const up=(state.chg24||0)>=0;
+  $('#bigPrice').textContent=fmt(state.last); $('#bigPrice').className='bigprice '+(up?'pos':'neg');
+  $('#chgBox').innerHTML=`<span class="${up?'pos':'neg'}">${sign(state.chg24||0)}${fmt(state.chg24||0)}%</span>`;
+  $('#h24').textContent=fmt(state.high24); $('#l24').textContent=fmt(state.low24);
+  $('#curPriceHdr').textContent='$'+fmt(state.last);
+}
+function updateOHLC(c){
+  if(!c) c=state.candles.at(-1); if(!c) return;
+  const up=c.c>=c.o; const col=up?'pos':'neg'; const d=new Date(c.t*1000);
+  const chg=((c.c-c.o)/c.o*100);
+  $('#ohlc').innerHTML=`<span>${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}</span>`+
+    `<span>O<b class="${col}">${fmt(c.o)}</b></span><span>H<b class="${col}">${fmt(c.h)}</b></span>`+
+    `<span>L<b class="${col}">${fmt(c.l)}</b></span><span>C<b class="${col}">${fmt(c.c)}</b></span>`+
+    `<span>Chg<b class="${chg>=0?'pos':'neg'}">${sign(chg)}${fmt(chg,2)}%</b></span>`;
+}
+
+/* ---- price-range sliders (% relative to entry price, or current price) ---- */
+function refreshRangeSliderTags(){
+  const cur=refPrice();
+  const lo=+$('#lower').value, up=+$('#upper').value;
+  const loPct=(lo/cur-1)*100, upPct=(up/cur-1)*100;
+  $('#lowerPct').textContent=(loPct>=0?'+':'−')+fmt(Math.abs(loPct),1)+'%';
+  $('#upperPct').textContent=(upPct>=0?'+':'−')+fmt(Math.abs(upPct),1)+'%';
+  // sliders: low 0..100 maps -50%..0% ; high 0..100 maps 0%..+100%
+  const loSliderVal=clamp((loPct+50)/50*100,0,100);
+  const upSliderVal=clamp(upPct,0,100);
+  $('#lowerSlider').value=loSliderVal;
+  $('#upperSlider').value=upSliderVal;
+}
+function lowerFromSlider(v){ const cur=refPrice(); const pct=-50+(v/100)*50; return cur*(1+pct/100); }
+function upperFromSlider(v){ const cur=refPrice(); const pct=(v/100)*100; return cur*(1+pct/100); }
+
+/* ---- date pickers (timestamp based) ---- */
+function setDateInputs(d, dateSel, timeSel){
+  dateSel.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  timeSel.value=`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function syncDateInputsFromTs(){
+  setDateInputs(new Date(state.startTs*1000), $('#startDate'), $('#startTime'));
+  setDateInputs(new Date(state.endTs*1000), $('#endDate'), $('#endTime'));
+}
+function tsFromInputs(dateStr,timeStr){
+  if(!dateStr) return null;
+  return Math.floor(new Date(dateStr+'T'+(timeStr||'00:00:00')).getTime()/1000);
+}
+function applyDatesFromInputs(){
+  const now=nowSec();
+  const s=tsFromInputs($('#startDate').value,$('#startTime').value);
+  let e=$('#endDate').value? tsFromInputs($('#endDate').value,$('#endTime').value):now;
+  if(s==null) return;
+  state.startTs=clamp(s, now-MIN_HISTORY, now-60);
+  const futureOK = state.forecast;
+  if(!$('#endDate').value){ state.endTs=now; state.endLive=true; }
+  else if(e>now){
+    if(futureOK){ state.endTs=clamp(e, state.startTs+60, now+MAX_FUTURE); state.endLive=false; }
+    else { state.endTs=now; state.endLive=true; }   // forecast off → can't go to the future
+  }
+  else { state.endTs=clamp(e, state.startTs+60, now); state.endLive=(now-state.endTs)<=2; }
+  refreshGridData(true);
+}
+/* commit after dragging a handle */
+function commitPeriodFromDrag(){ syncDateInputsFromTs(); debouncedRefresh(); }
+
+/* ===========================================================
+   OPTIMIZER — auto / realtime (debounced) on the grid dataset
+   =========================================================== */
+let _optBusy=false;
+function scheduleOpt(){ if(_optScheduled) return; _optScheduled=true; setTimeout(runOptimization,200); }
+let _optScheduled=false;
+function runOptimization(){
+  _optScheduled=false;
+  const ev=buildEvalSeries(); if(!ev || ev.series.length<5){ return; }
+  $('#optAutoBadge').classList.add('busy'); $('#optAutoBadge').textContent='● computing';
+  setTimeout(()=>{
+    // downsample for the scan if very dense
+    let cs=ev.series, s0=ev.s0, e0=ev.e0;
+    const segLen=e0-s0+1;
+    if(segLen>1600){
+      const stepN=Math.ceil(segLen/1600); const ds=[];
+      for(let i=s0;i<=e0;i+=stepN) ds.push(ev.series[i]);
+      if(ds[ds.length-1].t!==ev.series[e0].t) ds.push(ev.series[e0]);
+      cs=ds; s0=0; e0=ds.length-1;
+    }
+    const seg=cs.slice(s0,e0+1);
+    let mn=Infinity,mx=-Infinity; for(const c of seg){ if(c.l<mn)mn=c.l; if(c.h>mx)mx=c.h; }
+    const mid=(mn+mx)/2, span=(mx-mn)||mid*0.01;
+    const p0=readParams();
+    const stopP = ev.usePin? ev.stopPx : 0;
+
+    // ---- walk-forward split: rank on in-sample (first 70%), validate on out-of-sample (last 30%) ----
+    const wfOn=$('#wfToggle')?$('#wfToggle').checked:true;
+    const canWF=wfOn && !ev.usingFuture && (e0-s0+1)>=24;
+    let isS=s0,isE=e0,oosS=-1,oosE=-1;
+    if(canWF){
+      const split=s0+Math.max(8,Math.floor((e0-s0+1)*0.70));
+      isS=s0; isE=Math.min(split,e0-4); oosS=isE+1; oosE=e0;
+      if(oosE-oosS<4){ isE=e0; oosS=-1; }
+    }
+    const useWF=canWF && oosS>=0;
+    state.optWF=useWF;
+
+    const results=[];
+    // keep candidate bounds sane (a grid bot rarely spans <30% or >300% of the reference price)
+    const ref=(p0.entry>0? p0.entry : (state.last||mid))||mid;
+    const floor=Math.max(mn*0.6, ref*0.3, 1e-6);
+    const cap=Math.max(mx, ref*3);
+    const cu=v=>Math.min(Math.max(v,floor*1.01), cap);
+    const lowers=[Math.max(mn,floor), Math.max(mn+span*0.1,floor), Math.max(mn-span*0.15,floor), Math.max(mid-span*0.6,floor)];
+    const uppers=[Math.min(mx,cap), cu(mx-span*0.1), cu(mx+span*0.15), cu(mid+span*0.6)];
+    const gridSet=[5,6,8,10,12,15,20,25,30,40,50,65,80,100,120,150];
+    const modes=['geometric','arithmetic'];
+    const baseCfg={invest:p0.invest,fee:p0.fee,entry:p0.entry,sellAllOnStop:p0.sellAllOnStop,slipBps:p0.slipBps,recordTrades:false};
+    for(const lo of lowers) for(const up of uppers){
+      if(up<=lo || lo<=0) continue;
+      for(const gN of gridSet) for(const m of modes){
+        const cfg={...baseCfg,lower:lo,upper:up,grids:gN,mode:m};
+        const rankR = useWF ? backtest(cs,isS,isE,cfg) : backtest(cs,s0,e0,{...cfg,stopPrice:stopP});
+        const oosR  = useWF ? backtest(cs,oosS,oosE,cfg) : null;
+        results.push({lo,up,g:gN,m,r:rankR,oos:oosR});
+      }
+    }
+    state.optResults=results; state.optOnForecast=ev.usingFuture; renderOpt();
+    $('#optAutoBadge').classList.remove('busy'); $('#optAutoBadge').textContent= ev.usingFuture? '● forecast' : (useWF? '● walk-fwd':'● auto');
+  },10);
+}
+function renderOpt(){
+  if(!state.optResults){ return; }
+  const sort=$('#optSort .on').dataset.sort;
+  const key={total:'total',apr:'apr',risk:'riskRatio'}[sort]||'total';
+  const sorted=[...state.optResults].sort((a,b)=>b.r[key]-a.r[key]).slice(0,12);
+  const wf=state.optWF;
+  const note=$('#optNote');
+  if(note){
+    if(wf) note.innerHTML='<b>Walk-forward on.</b> Ranked on in-sample (IS, first 70%), re-tested on out-of-sample (OOS, last 30%). A big <b>IS→OOS drop</b> (red Δ) means the config fit past noise, not a real edge — don\'t trust it forward.';
+    else if(state.optOnForecast) note.innerHTML='<b>Forecast mode.</b> Walk-forward is off on projected data — IS columns show the full projected backtest. These are scenario-dependent, not a forward guarantee.';
+    else note.innerHTML='<b>Walk-forward off.</b> Configs are ranked on the whole window — classic in-sample overfit. Turn Walk-forward on to see how the &quot;best&quot; config holds up on unseen data.';
+  }
+  const body=$('#optBody');
+  body.innerHTML=sorted.map((x,i)=>{
+    const r=x.r, o=x.oos;
+    const cfg=`${pf(x.lo)}–${pf(x.up)} <span class="cfg-mode">${x.m==='geometric'?'Geo':'Arith'}</span>${i===0?'<span class="tag-best">BEST</span>':''}`;
+    const isPnl=`<td class="${r.total>=0?'pos':'neg'}">${sign(r.total)}${fmt(r.total)}</td>`;
+    const isApr=`<td class="${r.apr>=0?'pos':'neg'}">${sign(r.apr)}${fmt(r.apr,0)}%</td>`;
+    let oosPnl,oosApr,dCell;
+    if(wf && o){
+      oosPnl=`<td class="${o.total>=0?'pos':'neg'}">${sign(o.total)}${fmt(o.total)}</td>`;
+      oosApr=`<td class="${o.apr>=0?'pos':'neg'}">${sign(o.apr)}${fmt(o.apr,0)}%</td>`;
+      const d=o.apr-r.apr;
+      const bad=d < -Math.max(20,Math.abs(r.apr)*0.5);
+      dCell=`<td class="delta ${bad?'bad':(d>=0?'ok':'')}" title="OOS APR minus IS APR. Large negative = overfit to history.">${sign(d)}${fmt(d,0)}%</td>`;
+    }else{
+      oosPnl='<td class="muted">—</td>'; oosApr='<td class="muted">—</td>'; dCell='<td class="muted">—</td>';
+    }
+    return `<tr data-i="${i}" class="${i===0?'best':''}"><td>${cfg}</td><td>${x.g}</td>${isPnl}${isApr}${oosPnl}${oosApr}${dCell}</tr>`;
+  }).join('');
+  body.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click',()=>{
+    const x=sorted[+tr.dataset.i];
+    $('#lower').value=nf(x.lo); $('#upper').value=nf(x.up);
+    $('#grids').value=x.g; $('#gridsSlider').value=clamp(x.g,2,170); $('#mode').value=x.m;
+    refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt();
+  }));
+}
+
+/* ===========================================================
+   MONTE CARLO — distribution of outcomes over many future paths
+   =========================================================== */
+let _mcLast=null;
+function mcAvailable(){ return state.forecast && state.endTs>nowSec() && state.last!=null; }
+function setMcStale(on){ const el=$('#mcStale'); if(el) el.style.display=on?'inline':'none'; }
+function updateMcState(){
+  const st=$('#mcState'), body=$('#mcBody');
+  if(!mcAvailable()){
+    if(st){ st.style.display='block'; st.innerHTML='Turn on <b>Forecast mode</b> and set a future horizon (drag the END line right or pick a preset), then run paths to see the outcome distribution.'; }
+    if(body) body.style.display='none';
+  }else if(!_mcLast){
+    if(st){ st.style.display='block'; st.innerHTML='Ready. Click <b>Run paths</b> to simulate the current grid over many random futures.'; }
+    if(body) body.style.display='none';
+  }
+}
+/* real data START..min(END,now), downsampled to ≤600 pts for speed */
+function mcRealSegment(){
+  const g=state.gridData; if(!g||g.candles.length<2) return null;
+  const now=nowSec();
+  const sIdx=gridIdxOfTs(state.startTs), eIdx=gridIdxOfTs(Math.min(state.endTs,now));
+  let seg=g.candles.slice(sIdx,eIdx+1);
+  if(seg.length<1) return null;
+  if(seg.length>600){ const st=Math.ceil(seg.length/600); const ds=[]; for(let i=0;i<seg.length;i+=st) ds.push(seg[i]); if(ds[ds.length-1].t!==seg[seg.length-1].t) ds.push(seg[seg.length-1]); seg=ds; }
+  return seg;
+}
+/* volatility-per-step + neutral drift for the active horizon (mirrors buildForecastObj, neutral-centered) */
+function mcModelParams(stepSec){
+  if(state.autoForecast && state.histStats){
+    const {volDaily,driftDaily}=state.histStats;
+    const days=Math.max(60,state.fcHorizon)/86400;
+    return { volPerStep: volDaily*Math.sqrt(stepSec/86400), driftTotal: clamp(driftDaily*days,-0.6,0.6) };
+  }
+  const atrFrac=clamp((state.result?.atrPct||0.05)/100,0.0002,0.05);
+  const refSec=state.gridData?.ivSec||1;
+  return { volPerStep: atrFrac*state.fcVolMul*Math.sqrt(stepSec/refSec), driftTotal: 0 };
+}
+function pctl(arr,q){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y); const idx=clamp(q*(a.length-1),0,a.length-1); const lo=Math.floor(idx),hi=Math.ceil(idx); return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(idx-lo); }
+function runMonteCarlo(){
+  if(!mcAvailable()){ updateMcState(); return; }
+  const N=+(($('#mcN .on')&&$('#mcN .on').dataset.n)||300);
+  const real=mcRealSegment(); if(!real){ return; }
+  const p=readParams();
+  const horizon=Math.max(60,state.fcHorizon);
+  const coarse = horizon>2592000?86400 : horizon>604800?3600 : horizon>86400?900 : 60;
+  const steps=clamp(Math.round(horizon/coarse),40,260);
+  const stepSec=Math.max(1,Math.round(horizon/steps));
+  const {volPerStep,driftTotal}=mcModelParams(stepSec);
+  const lastClose=state.last, lastTs=nowSec();
+  const baseSeed=(state.seed>>>0)||12345;
+  const btCfg={lower:p.lower,upper:p.upper,grids:p.grids,mode:p.mode,invest:p.invest,fee:p.fee,entry:p.entry,sellAllOnStop:p.sellAllOnStop,slipBps:p.slipBps,recordTrades:false};
+  const run=$('#mcRun'); if(run){ run.disabled=true; run.textContent='running…'; }
+  const totals=[],aprs=[],dds=[]; let done=0;
+  (function chunk(){
+    const end=Math.min(done+25,N);
+    for(let i=done;i<end;i++){
+      const path=genOnePath(lastClose,lastTs,steps,stepSec,volPerStep,driftTotal,(baseSeed+i*2654435761)>>>0,state.fcTrend);
+      const series=real.concat(path);
+      const r=backtest(series,0,series.length-1,btCfg);
+      totals.push(r.total); aprs.push(r.apr); dds.push(r.maxDD);
+    }
+    done=end;
+    if(done<N){ setTimeout(chunk,0); }
+    else { finishMc(totals,aprs,dds,N,p.invest,horizon/86400); if(run){ run.disabled=false; run.textContent='▶ Run paths'; } }
+  })();
+}
+function finishMc(totals,aprs,dds,N,inv,days){
+  _mcLast={totals,inv,days};
+  setMcStale(false);
+  $('#mcState').style.display='none'; $('#mcBody').style.display='block';
+  const p5=pctl(totals,0.05), p50=pctl(totals,0.5), p95=pctl(totals,0.95);
+  const win=totals.filter(t=>t>0).length/totals.length*100;
+  const aprMed=pctl(aprs,0.5), ddMed=pctl(dds,0.5);
+  const usd=v=>`${sign(v)}$${fmt(v)}`;
+  $('#mcP5').textContent=usd(p5);
+  $('#mcP50').textContent=usd(p50);
+  $('#mcP95').textContent=usd(p95);
+  $('#mcWin').textContent=`${fmt(win,0)}%`; $('#mcWin').style.color=win>=50?'var(--green)':'var(--red)';
+  $('#mcApr').innerHTML = days>=APR_MIN_DAYS? `${sign(aprMed)}${fmt(aprMed,0)}%` : `<span class="unreliable" title="Horizon &lt;1 day — annualized APR is noise">${sign(aprMed)}${fmt(aprMed,0)}%</span>`;
+  $('#mcDD').textContent=`-$${fmt(ddMed)}`;
+  $('#mcFoot').innerHTML=`${N} paths · neutral drift · median outcome ${usd(p50)}. P5–P95 spread is the range of luck for this config; optimistic/bearish scenarios just shift this whole curve by ±1σ drift.`;
+  requestAnimationFrame(()=>drawMcHist(totals));
+}
+function drawMcHist(totals){
+  const cv=$('#mcHist'); if(!cv) return; const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1, w=cv.clientWidth||300, h=64;
+  cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  if(totals.length<3) return;
+  let mn=Math.min(...totals), mx=Math.max(...totals); if(mx-mn<1e-6){mx+=1;mn-=1;}
+  const BINS=28, bins=new Array(BINS).fill(0);
+  for(const t of totals){ let b=Math.floor((t-mn)/(mx-mn)*BINS); b=clamp(b,0,BINS-1); bins[b]++; }
+  const bmax=Math.max(...bins)||1;
+  const zeroX=(0-mn)/(mx-mn)*w;
+  if(zeroX>=0&&zeroX<=w){ ctx.strokeStyle='rgba(255,255,255,.28)'; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(zeroX,0); ctx.lineTo(zeroX,h); ctx.stroke(); ctx.setLineDash([]); }
+  const bw=w/BINS;
+  for(let i=0;i<BINS;i++){
+    const bh=bins[i]/bmax*(h-6);
+    const x=i*bw, binMid=mn+(i+0.5)/BINS*(mx-mn);
+    ctx.fillStyle=binMid>=0?'rgba(22,199,132,.72)':'rgba(234,57,67,.72)';
+    ctx.fillRect(x+0.5,h-bh,Math.max(1,bw-1),bh);
+  }
+}
+
+/* ===========================================================
+   BINDINGS
+   =========================================================== */
+function bind(){
+  // numeric / mode inputs → recompute + auto-opt (no refetch needed)
+  ['lower','upper','mode','fee'].forEach(id=>{
+    $('#'+id).addEventListener('input',()=>{ refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt(); });
+  });
+  $('#grids').addEventListener('input',()=>{ $('#gridsSlider').value=clamp(+$('#grids').value,2,170); recomputeMetrics(); scheduleOpt(); });
+  $('#invest').addEventListener('input',()=>{ $('#investSlider').value=clamp(+$('#invest').value,100,100000); recomputeMetrics(); scheduleOpt(); });
+  $('#gridsSlider').addEventListener('input',e=>{ $('#grids').value=e.target.value; recomputeMetrics(); scheduleOpt(); });
+  $('#investSlider').addEventListener('input',e=>{ $('#invest').value=e.target.value; recomputeMetrics(); scheduleOpt(); });
+
+  // entry price
+  $('#entry').addEventListener('input',()=>{
+    if(entryOn()){ const cur=refPrice();
+      $('#upper').value=nf(clamp(+$('#upper').value, cur, cur*2));
+      $('#lower').value=nf(clamp(+$('#lower').value, cur*0.5, cur)); }
+    refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt(); Chart.draw();
+  });
+  $('#entryEnabled').addEventListener('change',e=>{
+    const on=e.target.checked;
+    $('#entry').disabled=!on;
+    if(on){
+      // seed entry from current price if empty, so low/high have a reference
+      if(!parseFloat($('#entry').value)) $('#entry').value=nf(state.last||refPrice());
+      // re-clamp current low/high into [−50%, +100%] of entry
+      const cur=refPrice();
+      $('#upper').value=nf(clamp(+$('#upper').value, cur, cur*2));
+      $('#lower').value=nf(clamp(+$('#lower').value, cur*0.5, cur));
+    }
+    refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt(); Chart.draw();
+  });
+
+  // price-range sliders
+  $('#lowerSlider').addEventListener('input',e=>{ $('#lower').value=nf(lowerFromSlider(+e.target.value)); refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt(); });
+  $('#upperSlider').addEventListener('input',e=>{ $('#upper').value=nf(upperFromSlider(+e.target.value)); refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt(); });
+
+  // sell-all-on-stop affects Balance at Stop
+  $('#sellAllStop').addEventListener('change',()=>{ recomputeMetrics(); scheduleOpt(); });
+
+  $('#autoRange').addEventListener('click',()=>{
+    const g=state.gridData; if(!g) return;
+    const sIdx=gridIdxOfTs(state.startTs), eIdx=gridIdxOfTs(state.endTs);
+    const seg=g.candles.slice(sIdx,eIdx+1); if(!seg.length) return;
+    let mn=Infinity,mx=-Infinity; for(const c of seg){if(c.l<mn)mn=c.l;if(c.h>mx)mx=c.h;}
+    $('#lower').value=nf(mn); $('#upper').value=nf(mx);
+    refreshRangeSliderTags(); recomputeMetrics(); scheduleOpt();
+  });
+
+  // fee buttons
+  document.querySelectorAll('.fee-grid button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.fee-grid button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); $('#fee').value=b.dataset.fee; recomputeMetrics(); scheduleOpt();
+  }));
+  $('#fee').addEventListener('input',()=>document.querySelectorAll('.fee-grid button').forEach(x=>x.classList.remove('on')));
+
+  // slippage / spread
+  if($('#slip')) $('#slip').addEventListener('input',()=>{ $('#slipVal').textContent=(Math.max(0,+$('#slip').value||0))+' bps'; recomputeMetrics(); scheduleOpt(); });
+  // walk-forward toggle re-runs the optimizer
+  if($('#wfToggle')) $('#wfToggle').addEventListener('change',()=>scheduleOpt());
+  // monte carlo controls
+  if($('#mcRun')) $('#mcRun').addEventListener('click',runMonteCarlo);
+  document.querySelectorAll('#mcN button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#mcN button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setMcStale(!!_mcLast);
+  }));
+
+  // date pickers → refetch grid dataset for the new window
+  ['startDate','startTime','endDate','endTime'].forEach(id=>$('#'+id).addEventListener('change',applyDatesFromInputs));
+
+  // toggles
+  $('#tgGrids').addEventListener('change',e=>{state.showGrids=e.target.checked;Chart.draw();});
+  $('#tgCandles').addEventListener('change',e=>{state.showCandles=e.target.checked;Chart.draw();});
+  $('#tgOrders').addEventListener('change',e=>{state.showOrders=e.target.checked;Chart.draw();});
+  $('#tgLabels').addEventListener('change',e=>{state.labels=e.target.checked;Chart.draw();});
+  $('#tgForecast').addEventListener('change',e=>{
+    state.forecast=e.target.checked;
+    $('#scenLegend').classList.toggle('hidden',!state.forecast);
+    $('#fcState').parentElement.classList.toggle('active',state.forecast);
+    if(state.forecast){
+      const now=nowSec();
+      // place END at the end of the default projection so the lines are visible (not all grey);
+      // only when END is currently at "now" — never override a user-set END
+      if(state.endTs<=now+1){ state.endTs=now+state.fcHorizon; state.endLive=false; syncDateInputsFromTs(); }
+      Chart.rebuildForecast(); recomputeMetrics(); Chart.fit();
+      updateMcState();
+    }else{
+      // leaving forecast: drop scenario, pull end back to now
+      selectScenario('none', true);
+      const now=nowSec();
+      if(state.endTs>now){ state.endTs=now; state.endLive=true; syncDateInputsFromTs(); refreshGridData(true); }
+      _mcLast=null; updateMcState();
+    }
+    Chart.draw();
+  });
+  $('#reseed').addEventListener('click',reseedForecast);
+  $('#reseed2').addEventListener('click',reseedForecast);
+  $('#fitBtn').addEventListener('click',()=>Chart.fit());
+  $('#nowBtn').addEventListener('click',()=>Chart.goNow());
+  $('#endNowBtn').addEventListener('click',()=>{
+    const now=nowSec();
+    state.endTs=now; state.endLive=true; state.fcHorizon=Math.max(3600,state.fcHorizon);
+    syncDateInputsFromTs(); syncPresetButtons();
+    refreshGridData(true); Chart.goNow();
+  });
+  // keyboard shortcuts (ignore when typing in a field)
+  document.addEventListener('keydown',e=>{
+    const t=e.target, tag=t&&t.tagName;
+    if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    const k=(e.key||'').toLowerCase();
+    if(k==='n'){ e.preventDefault(); Chart.goNow(); }
+    else if(k==='e'){ e.preventDefault(); $('#endNowBtn').click(); }
+    else if(k==='f'){ e.preventDefault(); Chart.fit(); }
+  });
+
+  // forecast lab — horizon presets
+  document.querySelectorAll('#fcPresets button').forEach(b=>b.addEventListener('click',()=>{
+    if(!state.forecast){ $('#tgForecast').checked=true; $('#tgForecast').dispatchEvent(new Event('change')); }
+    state.fcHorizon=+b.dataset.h; syncPresetButtons();
+    const now=nowSec(); state.endTs=now+state.fcHorizon; state.endLive=false;
+    if(state.scenario==='none') selectScenario('optimistic', true);  // auto-pick so it counts
+    Chart.rebuildForecast(); syncDateInputsFromTs(); Chart.fit(); recomputeMetrics(); scheduleOpt();
+  }));
+  // vol / spread / momentum
+  $('#fcVol').addEventListener('input',e=>{ state.fcVolMul=+e.target.value; $('#fcVolVal').textContent=fmt(state.fcVolMul,1)+'×'; Chart.rebuildForecast(); recomputeMetrics(); Chart.draw(); });
+  $('#fcSpread').addEventListener('input',e=>{ state.fcSpread=+e.target.value; $('#fcSpreadVal').textContent=state.fcSpread+'%'; Chart.rebuildForecast(); recomputeMetrics(); Chart.draw(); });
+  $('#fcTrend').addEventListener('input',e=>{ state.fcTrend=+e.target.value; $('#fcTrendVal').textContent=fmt(state.fcTrend,2); Chart.rebuildForecast(); recomputeMetrics(); Chart.draw(); });
+  // auto forecast: derive scenarios from 3-month history
+  $('#fcAuto').addEventListener('change',async e=>{
+    state.autoForecast=e.target.checked;
+    $('#fcManual').style.display = state.autoForecast?'none':'';
+    $('#fcAutoNote').style.display = state.autoForecast?'block':'none';
+    if(state.autoForecast){ $('#fcAutoStats').textContent='loading…'; await refreshHistStats(); }
+    Chart.rebuildForecast(); recomputeMetrics(); Chart.draw();
+  });
+
+  // scenario legend buttons
+  document.querySelectorAll('.scen-opt').forEach(b=>b.addEventListener('click',()=>selectScenario(b.dataset.scen)));
+
+  // coin selector
+  $('#coinSelect').addEventListener('change',e=>switchCoin(e.target.value));
+
+  // timeframe (DISPLAY ONLY)
+  document.querySelectorAll('#tfSeg button').forEach(b=>b.addEventListener('click',async()=>{
+    document.querySelectorAll('#tfSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); await switchDisplayTF(b.dataset.tf);
+  }));
+
+  // optimization sort
+  document.querySelectorAll('#optSort button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#optSort button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); renderOpt();
+  }));
+
+  // time-in-range tooltip
+  bindTirTooltip();
+
+  // PnL curve hover readout
+  const sw=$('#spark').parentElement;
+  sw.addEventListener('mousemove',e=>{ const r=sw.getBoundingClientRect(); renderSpark(e.clientX-r.left); });
+  sw.addEventListener('mouseleave',()=>renderSpark(null));
+}
+
+function reseedForecast(){ state.seed=Math.random()*1e9|0; Chart.rebuildForecast(); recomputeMetrics(); Chart.draw(); }
+
+function syncPresetButtons(){
+  document.querySelectorAll('#fcPresets button').forEach(b=>b.classList.toggle('on', +b.dataset.h===state.fcHorizon));
+}
+function selectScenario(key, silent){
+  state.scenario=key;
+  document.querySelectorAll('.scen-opt').forEach(b=>b.classList.toggle('on', b.dataset.scen===key));
+  const badge=$('#fcSelBadge');
+  const names={none:'None',optimistic:'Optimistic',neutral:'Neutral / flat',bearish:'Bearish'};
+  badge.textContent=names[key]; badge.className='fc-sel-badge '+key;
+  if(!silent){ Chart.rebuildForecast(); recomputeMetrics(); scheduleOpt(); Chart.draw(); }
+}
+
+async function switchCoin(sym){
+  state.symbol=sym; state.dec=(COINS[sym]?.dec)||2;
+  const ico=$('#coinIco'); const cc=COINS[sym]||COINS.SOLUSDT;
+  ico.style.background=`linear-gradient(135deg,${cc.c1},${cc.c2})`;
+  Feed.stop(); state.sim=false; state.gridData=null;
+  Chart.resetHistory();
+  $('#entry').value='';
+  // reset forecast/scenario to avoid stale paths from another coin
+  selectScenario('none', true);
+  await switchDisplayTF(state.tf);
+  // re-anchor period: keep duration, end=now
+  const now=nowSec(); const dur=Math.max(60, state.endTs-state.startTs);
+  state.endTs=now; state.endLive=true; state.startTs=now-Math.min(dur,15*60);
+  // reset price range around new price
+  const cur=state.last||cc.base;
+  $('#lower').value=nf(cur*0.985); $('#upper').value=nf(cur*1.015);
+  refreshRangeSliderTags(); syncDateInputsFromTs();
+  await refreshGridData(true);
+  Chart.fit();
+  state.histStats=null; if(state.autoForecast){ refreshHistStats().then(()=>{ Chart.rebuildForecast(); recomputeMetrics(); Chart.draw(); }); }
+}
+
+/* Time-In-Range: show breakdown in the panel's top-right corner (no floating tooltip) */
+function setTirInfo(seg){
+  const el=$('#tirInfo'); if(!el) return;
+  const d=state._tir;
+  if(!d){ el.textContent=''; el.className='tir-info'; return; }
+  if(!seg){
+    const inSec=d.buy.sec+d.sell.sec, inPct=d.buy.pct+d.sell.pct;
+    el.innerHTML=`<b class="g">in range</b> ${fmtDur(inSec)} · ${fmt(inPct,1)}%`;
+    el.className='tir-info';
+    return;
+  }
+  const titles={buy:'Buy side', sell:'Sell side', oor:'Out of range'};
+  const cls={buy:'g', sell:'r', oor:'o'}[seg];
+  const info=d[seg];
+  el.innerHTML=`<b class="${cls}">${titles[seg]}</b> ${fmtDur(info.sec)} · ${fmt(info.pct,1)}%`;
+  el.className='tir-info active';
+}
+function bindTirTooltip(){
+  const bar=$('#tirBar');
+  bar.querySelectorAll('div[data-seg]').forEach(seg=>{
+    seg.addEventListener('mouseenter',()=>setTirInfo(seg.dataset.seg));
+    seg.addEventListener('mousemove',()=>setTirInfo(seg.dataset.seg));
+    seg.addEventListener('mouseleave',()=>setTirInfo(null));
+  });
+}
+
+/* ===========================================================
+   LIVE UPDATE HANDLER
+   =========================================================== */
+Feed.setHandler((candle, closed)=>{
+  const arr=state.candles; const last=arr.at(-1);
+  if(last && last.t===candle.t){ arr[arr.length-1]=candle; }
+  else if(!last || candle.t>last.t){
+    arr.push(candle); if(arr.length>60000) arr.shift();
+    if(state.forecast){ Chart.rebuildForecast(); }
+  }
+  state.last=candle.c;
+  updateTop(); refreshRangeSliderTags();
+
+  // live tail into the grid dataset when end is "now" and the dataset is 1s
+  if(state.endLive){
+    state.endTs=nowSec();
+    const g=state.gridData;
+    if(g && g.iv==='1s'){
+      // build/update 1s candle in grid data
+      const gt=state.last;
+      const sec=nowSec();
+      const gc=g.candles, glast=gc.at(-1);
+      if(glast && glast.t===sec){ glast.c=gt; if(gt>glast.h)glast.h=gt; if(gt<glast.l)glast.l=gt; }
+      else { gc.push({t:sec,o:glast?glast.c:gt,h:gt,l:gt,c:gt}); if(gc.length>GRID_MAXC+200) gc.shift(); }
+      g.endTs=sec;
+      recomputeMetricsLive();
+    }
+  }
+  if(!Chart_busy) Chart.draw();
+});
+let Chart_busy=false;
+
+/* periodic refresh for live windows that use a coarse grid interval */
+setInterval(()=>{ if(state.endLive && state.gridData && state.gridData.iv!=='1s' && !Chart_busy) refreshGridData(true); }, 20000);
+
+/* ===========================================================
+   DISPLAY-TF SWITCH (does NOT touch grid period or metrics)
+   =========================================================== */
+async function switchDisplayTF(tf){
+  Chart_busy=true;
+  Feed.stop();
+  state.tf=tf;
+  Chart.resetHistory();
+  $('#liveText').textContent='LOADING '+tf+'…';
+  const {candles}=await Feed.loadDisplay(tf);
+  state.candles=candles;
+  state.last=candles.at(-1).c;
+  Feed.subscribe(tf);
+  setLiveBadge();
+  Chart.resize(); Chart.fit();
+  if(state.forecast) Chart.rebuildForecast();
+  updateTop(); updateOHLC(); refreshRangeSliderTags();
+  Chart.draw();
+  Chart_busy=false;
+}
+function setLiveBadge(){
+  const dot=$('#liveDot'), txt=$('#liveText');
+  const label=state.symbol.replace('USDT','');
+  if(state.sim){ dot.className='live-dot sim'; txt.textContent='SIM '+label; }
+  else { dot.className='live-dot'; txt.textContent='LIVE '+label; }
+}
+
+/* ===========================================================
+   INIT
+   =========================================================== */
+async function init(){
+  bind();
+  Chart.init();
+  // coin icon + decimals for default (SOL)
+  state.dec=COINS[state.symbol].dec;
+  const cc=COINS[state.symbol]; $('#coinIco').style.background=`linear-gradient(135deg,${cc.c1},${cc.c2})`;
+  syncPresetButtons();
+  // initial display data
+  await switchDisplayTF('1s');
+  // default grid period: last 15 minutes (uses true 1s data), end = now (live)
+  const now=nowSec();
+  state.endTs=now; state.endLive=true;
+  state.startTs=now-15*60;
+  syncDateInputsFromTs();
+  // initialise price range around current price (±~1.5%)
+  const cur=state.last||72;
+  $('#lower').value=nf(cur*0.985); $('#upper').value=nf(cur*1.015);
+  refreshRangeSliderTags();
+  await refreshGridData(true);
+  Chart.fit();
+  updateMcState();
+}
+window.gridApp={ get state(){return state;}, Chart, Feed, recomputeMetrics };
+init();
+</script>
+</body>
+</html>
