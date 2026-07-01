@@ -75,3 +75,25 @@ runtime:
 web:
   host: 127.0.0.1               # use 0.0.0.0 to expose on your LAN (still read-only)
   port: 8000
+
+# Phase 2 — paper simulator (run with: python main.py sim). NO real orders.
+# It opens virtual positions on wide gross spreads, holds, and closes on
+# convergence / stop / timeout, accounting P&L through the same fees/ engine.
+simulator:
+  # Open a paper trade when the GROSS cross-exchange spread is at least this wide.
+  # Profitability after costs is what the sim MEASURES — on liquid coins at $100
+  # most trades net negative (there is no free edge). Keep this modest to exercise
+  # the harness; raise it to only bet on larger dislocations.
+  entry_gross_bps: 15
+  min_expected_net_bps: -1000000000   # optional gate on expected net (exit@convergence); off by default
+  max_open_positions: 20
+  journal_path: logs/paper_trades.jsonl
+  exit:
+    convergence_bps: 5          # take profit when the spread narrows to <= this
+    stop_adverse_bps: 25        # stop out when the spread widens this much beyond entry
+    max_hold_seconds: 3600      # force close after this long
+  legging:
+    delay_ms: 250               # gap between leg-1 and leg-2 fills
+    adverse_bps_per_100ms: 0.5  # spread decay during the gap -> worse effective entry
+    one_leg_fill_prob: 0.02     # chance leg-2 never fills -> emergency close leg-1 at a loss
+    seed: 42                    # RNG seed for reproducible paper runs

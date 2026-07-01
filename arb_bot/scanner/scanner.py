@@ -36,9 +36,26 @@ class ScanResult:
     funding_intervals: dict[str, dict] = field(default_factory=dict)
 
 
-def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
-    """Run one full scan pass across all loaded exchanges."""
-    # 1) One batched ticker fetch per exchange -> quotes + volumes.
+@dataclass
+class MarketData:
+    """One pass of fetched market data, shared by the scanner and the simulator.
+
+    ``quotes_by_ex`` holds *every* coin each exchange lists (fetch_tickers is
+    batched over all markets), so it can also price open simulator positions whose
+    coin has dropped out of the current universe. ``funding_by_ex`` covers only
+    universe coins (to limit request volume).
+    """
+
+    quotes_by_ex: dict[str, dict[str, QuoteSnapshot]]
+    volumes_by_ex: dict[str, dict[str, float]]
+    universe: list[UniverseEntry]
+    stats: UniverseStats
+    funding_by_ex: dict[str, dict[str, FundingSnapshot]]
+    funding_intervals: dict[str, dict]
+
+
+def collect_market_data(clients: dict[str, ExchangeClient], cfg: Config) -> MarketData:
+    """Fetch quotes/volumes, form the universe, and fetch funding for it."""
     quotes_by_ex: dict[str, dict[str, QuoteSnapshot]] = {}
     volumes_by_ex: dict[str, dict[str, float]] = {}
     markets_by_ex = {name: c.markets for name, c in clients.items()}
@@ -46,7 +63,6 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
         quotes_by_ex[name] = client.fetch_tickers()
         volumes_by_ex[name] = client.volumes()
 
-    # 2) Form the universe (intersection >=2 venues, volume floor, top-N).
     universe, stats = build_universe(markets_by_ex, quotes_by_ex, volumes_by_ex, cfg.universe)
     log.info(
         "universe: %d coins seen, %d on >=2 venues, %d passed volume, %d selected "
@@ -59,7 +75,6 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
         stats.dropped_low_volume,
     )
 
-    # 3) Funding for universe coins only (limit request volume), per exchange.
     funding_by_ex: dict[str, dict[str, FundingSnapshot]] = {}
     coins_per_ex: dict[str, list[str]] = {}
     for entry in universe:
@@ -69,15 +84,26 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
         funding_by_ex[name] = clients[name].fetch_funding(coins)
     funding_intervals = _summarize_funding_intervals(funding_by_ex)
 
-    # 4) Evaluate every exchange pair for every universe coin.
-    opportunities: list[Opportunity] = []
-    skip_reasons: dict[str, int] = {}
-    skipped = 0
+    return MarketData(
+        quotes_by_ex=quotes_by_ex,
+        volumes_by_ex=volumes_by_ex,
+        universe=universe,
+        stats=stats,
+        funding_by_ex=funding_by_ex,
+        funding_intervals=funding_intervals,
+    )
 
-    for entry in universe:
+
+def build_opportunities(
+    clients: dict[str, ExchangeClient], cfg: Config, md: MarketData
+) -> tuple[list[Opportunity], int]:
+    """Evaluate every exchange pair for every universe coin. Returns (opps, skipped)."""
+    opportunities: list[Opportunity] = []
+    skipped = 0
+    for entry in md.universe:
         for ex_a, ex_b in itertools.combinations(entry.exchanges, 2):
-            q_a = quotes_by_ex[ex_a].get(entry.coin)
-            q_b = quotes_by_ex[ex_b].get(entry.coin)
+            q_a = md.quotes_by_ex[ex_a].get(entry.coin)
+            q_b = md.quotes_by_ex[ex_b].get(entry.coin)
             if q_a is None or q_b is None:
                 continue
 
@@ -88,23 +114,29 @@ def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
                 long_ex, short_ex, long_q, short_q = ex_b, ex_a, q_b, q_a
 
             opp = _evaluate(
-                clients, cfg, entry.coin, long_ex, short_ex, long_q, short_q, funding_by_ex
+                clients, cfg, entry.coin, long_ex, short_ex, long_q, short_q, md.funding_by_ex
             )
             if opp is None:
                 skipped += 1
                 continue
             opportunities.append(opp)
 
-    # Sort best-first by net spread.
     opportunities.sort(key=lambda o: o.cost.net_spread_bps, reverse=True)
+    return opportunities, skipped
+
+
+def scan(clients: dict[str, ExchangeClient], cfg: Config) -> ScanResult:
+    """Run one full scan pass across all loaded exchanges."""
+    md = collect_market_data(clients, cfg)
+    opportunities, skipped = build_opportunities(clients, cfg, md)
     return ScanResult(
         opportunities=opportunities,
-        universe=universe,
-        stats=stats,
+        universe=md.universe,
+        stats=md.stats,
         skipped_pairs=skipped,
-        skip_reasons=skip_reasons,
+        skip_reasons={},
         exchanges_loaded=list(clients),
-        funding_intervals=funding_intervals,
+        funding_intervals=md.funding_intervals,
     )
 
 

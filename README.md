@@ -3,9 +3,10 @@
 Cross-exchange spread arbitrage on crypto **perpetual futures**, built strictly
 phase by phase: **scanner (read-only) → simulator (paper) → guarded live**.
 
-> **Status: Phase 1 (P0) only.** This repository currently contains the read-only
-> scanner. There are **no API keys, no orders, and no trading**. Later phases are
-> deliberately not built yet.
+> **Status: Phase 1 (P0) + Phase 2 (P0).** The repository contains the read-only
+> scanner (Phase 1) and the paper simulator (Phase 2). There are still **no API
+> keys, no orders, and no real trading** — the simulator trades virtually. Phase 3
+> (guarded live execution) is deliberately not built yet.
 
 The bot supports (by design) three pluggable strategies on shared
 infrastructure — cross-exchange perp-perp spread (the main one), funding-rate
@@ -112,9 +113,10 @@ arb_bot/
   fees/      engine.py            # the cost/profit source of truth
   risk/      sizing.py            # symmetric delta-neutral sizing
   pairs/     validate.py          # same-asset, linear-only, sane book
-  scanner/   universe.py, scanner.py, report.py
+  scanner/   universe.py, scanner.py (collect_market_data/build_opportunities/scan), report.py
   web/       server.py (stdlib dashboard), serialize.py, static/index.html
-logs/                   # JSONL/CSV journal lands here in P1
+  simulator/ paper.py (loop), legging.py, pnl.py, journal.py, models.py   # Phase 2
+logs/                   # paper_trades.jsonl journal lands here
 tests/                  # unit tests land here in P1
 ```
 
@@ -198,6 +200,44 @@ present — verification stays **on**, just against the correct chain. Separatel
 unreachable they are skipped and the scan proceeds on the remaining venues.
 
 ---
+
+## Phase 2 — paper simulator
+
+`python main.py sim` runs a **paper (virtual) trader** over the same read-only
+feed. Each pass it first checks exits for open positions, then opens new ones:
+
+1. **Entry** on a wide gross spread (`simulator.entry_gross_bps`, default 15). This
+   is the real dislocation to bet on converging — whether it is *profitable* after
+   costs is exactly what the sim measures. On liquid coins at $100 most trades net
+   negative (no free edge); raise the threshold to bet only on larger gaps, or add
+   a `min_expected_net_bps` gate.
+2. **Legging model** on open: with `one_leg_fill_prob` the second leg never fills →
+   the entry is aborted and the first leg is unwound at a full one-leg round-trip
+   loss (journaled as `one_leg_fail`). Otherwise both fill, but the spread decays
+   during `delay_ms` (`adverse_bps_per_100ms`), so the effective entry is worse.
+3. **Hold**, then **exit** on the first of: convergence (spread ≤ `convergence_bps`,
+   take profit), stop (spread widened ≥ entry + `stop_adverse_bps`), or timeout
+   (`max_hold_seconds`). All three are modeled.
+4. **P&L** through the shared `fees/` engine: `capture = effective_entry − exit`,
+   minus commission / half-spread / slippage / capital (scaled to the *actual*
+   hold), plus **event-based net funding** — you only pay/receive at a settlement
+   you were actually holding through (two-sided, per each leg's own interval).
+
+Every close is appended to a **JSONL journal** (`simulator.journal_path`,
+default `logs/paper_trades.jsonl`) with the full breakdown: entry/exit times and
+spreads, size, residual delta, each cost line separately, realized net funding,
+net P&L, return on capital, hold duration, and exit reason. The console prints a
+running status line (open/closed counts, win %, realized P&L, exit-reason
+breakdown, and how much of the gross capture the costs ate).
+
+Runs are reproducible via `simulator.legging.seed`. Because real spreads converge
+over minutes–hours, a short run mostly shows opens and timeouts; lower
+`max_hold_seconds` / `loop_interval_seconds` to exercise the full cycle quickly.
+
+**Phase 2 scope note:** this is the P0 slice — full virtual cycle + journal +
+legging/one-leg/funding-timing risk models, reusing the flat-slippage cost model
+from Phase 1. Real L2-depth slippage, the full statistics summary + equity curve,
+and unit tests are the Phase 2 P1 follow-ups.
 
 ## Limitations & risks (read this)
 

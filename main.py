@@ -2,13 +2,14 @@
 
 Phase 1 (P0): read-only cross-exchange perp spread scanner. No keys, no orders.
 
-    python main.py                 # console scanner, ./config.yaml
+    python main.py                 # Phase 1 console scanner, ./config.yaml
     python main.py path/to.yaml    # console scanner, specific config
-    python main.py web             # read-only web dashboard (same data)
-    python main.py web path/to.yaml
+    python main.py web             # Phase 1 read-only web dashboard (same data)
+    python main.py sim             # Phase 2 paper simulator (virtual trades only)
+    python main.py sim path/to.yaml
 
-Richer CLI flags, phase/strategy selection, and JSONL logging arrive in P1. For
-now the phase is read from config (only "p0" is implemented).
+Richer CLI flags and per-strategy selection arrive later. The phase is read from
+config; Phases 1 (scan/web) and 2 (sim) are implemented.
 """
 
 from __future__ import annotations
@@ -26,8 +27,8 @@ from arb_bot.scanner.scanner import scan
 def main(argv: list[str]) -> int:
     args = argv[1:]
     mode = "console"
-    if args and args[0] == "web":
-        mode, args = "web", args[1:]
+    if args and args[0] in ("web", "sim"):
+        mode, args = args[0], args[1:]
     config_path = args[0] if args else "config.yaml"
 
     cfg = load_config(config_path)
@@ -43,6 +44,11 @@ def main(argv: list[str]) -> int:
 
         log.info("Phase 1 (P0) web dashboard — read-only, no keys. exchanges=%s", cfg.exchanges)
         return run_dashboard(cfg, host=cfg.web.host, port=cfg.web.port)
+
+    if mode == "sim":
+        from arb_bot.simulator.paper import run_paper
+
+        return run_paper(cfg)
 
     log.info("Phase 1 (P0) scanner — read-only, no keys. exchanges=%s", cfg.exchanges)
     clients = build_exchanges(cfg)

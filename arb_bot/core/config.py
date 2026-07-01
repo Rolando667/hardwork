@@ -71,6 +71,36 @@ class WebConfig:
 
 
 @dataclass(frozen=True)
+class SimExitConfig:
+    convergence_bps: float = 5.0     # take profit when the gross spread narrows to <= this
+    stop_adverse_bps: float = 25.0   # stop out when the spread widens this much beyond entry
+    max_hold_seconds: float = 3600.0  # force close after this
+
+
+@dataclass(frozen=True)
+class SimLeggingConfig:
+    delay_ms: float = 250.0              # gap between leg-1 and leg-2 fills
+    adverse_bps_per_100ms: float = 0.5  # spread decay during that gap -> worse entry
+    one_leg_fill_prob: float = 0.02     # chance leg-2 never fills -> emergency close leg-1
+    seed: int = 42                      # RNG seed for reproducible paper runs
+
+
+@dataclass(frozen=True)
+class SimulatorConfig:
+    # Entry trigger: open a paper position when the GROSS spread is at least this
+    # wide (a real dislocation to bet on converging). Whether it is *profitable*
+    # after costs is exactly what the simulator measures. Set low to exercise the
+    # harness on these venues, where liquid-coin edges are thin/negative.
+    entry_gross_bps: float = 15.0
+    # Optional secondary gate on expected net (exit at convergence). -inf = off.
+    min_expected_net_bps: float = -1.0e9
+    max_open_positions: int = 20
+    journal_path: str = "logs/paper_trades.jsonl"
+    exit: SimExitConfig = field(default_factory=SimExitConfig)
+    legging: SimLeggingConfig = field(default_factory=SimLeggingConfig)
+
+
+@dataclass(frozen=True)
 class Config:
     phase: str
     strategy: str
@@ -82,6 +112,7 @@ class Config:
     fees: FeesConfig
     runtime: RuntimeConfig
     web: WebConfig
+    simulator: SimulatorConfig
 
 
 def load_config(path: str | Path = "config.yaml") -> Config:
@@ -109,6 +140,11 @@ def load_config(path: str | Path = "config.yaml") -> Config:
     overrides = {str(k).lower(): dict(v) for k, v in (fees_raw.pop("overrides", {}) or {}).items()}
     fees = FeesConfig(overrides=overrides, **fees_raw)
 
+    sim_raw = _section(raw, "simulator")
+    exit_cfg = SimExitConfig(**(sim_raw.pop("exit", {}) or {}))
+    legging_cfg = SimLeggingConfig(**(sim_raw.pop("legging", {}) or {}))
+    simulator = SimulatorConfig(exit=exit_cfg, legging=legging_cfg, **sim_raw)
+
     cfg = Config(
         phase=str(raw.get("phase", "p0")),
         strategy=str(raw.get("strategy", "cross_exchange_spread")),
@@ -120,6 +156,7 @@ def load_config(path: str | Path = "config.yaml") -> Config:
         fees=fees,
         runtime=RuntimeConfig(**_section(raw, "runtime")),
         web=WebConfig(**_section(raw, "web")),
+        simulator=simulator,
     )
 
     # Allow env to override the log level for quick debugging without editing yaml.

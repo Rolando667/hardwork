@@ -30,6 +30,17 @@ _HOURS_PER_YEAR = 24.0 * 365.0  # 8760
 _BPS = 10_000.0
 
 
+def capital_cost_bps(annual_bps: float, hold_hours: float) -> float:
+    """Cost of the frozen capital (2x notional) over ``hold_hours``, in bps of one leg.
+
+    rate = (annual_bps / 1e4) * (hold_hours / 8760); applied to a 2x base, so in
+    bps of one leg's notional it is 2 * rate * 1e4. Shared by the scanner's
+    forward estimate and the simulator's realized (actual-hold) accounting.
+    """
+    rate = (annual_bps / _BPS) * (hold_hours / _HOURS_PER_YEAR)
+    return 2.0 * rate * _BPS
+
+
 def net_funding_bps(
     long_funding: FundingSnapshot,
     short_funding: FundingSnapshot,
@@ -94,13 +105,10 @@ def compute_cost_breakdown(
     nf_bps = net_funding_bps(long_funding, short_funding, cfg.funding_horizon_hours)
 
     # 5) Cost of frozen capital over the expected hold.
-    capital_rate = (cfg.capital_cost_annual_bps / _BPS) * (
-        cfg.expected_hold_hours / _HOURS_PER_YEAR
-    )
-    capital_cost_quote = frozen_capital * capital_rate
-    capital_cost_bps = (capital_cost_quote / notional * _BPS) if notional > 0 else 0.0
+    cap_bps = capital_cost_bps(cfg.capital_cost_annual_bps, cfg.expected_hold_hours)
+    capital_cost_quote = cap_bps / _BPS * notional
 
-    other_costs_bps = commission_bps + half_spread_cost_bps + slippage_bps + capital_cost_bps
+    other_costs_bps = commission_bps + half_spread_cost_bps + slippage_bps + cap_bps
 
     net_spread_bps = gross_spread_bps + nf_bps - other_costs_bps
     breakeven_spread_bps = other_costs_bps - nf_bps
@@ -124,7 +132,7 @@ def compute_cost_breakdown(
         slippage_quote=to_quote(slippage_bps),
         net_funding_bps=nf_bps,
         net_funding_quote=to_quote(nf_bps),
-        capital_cost_bps=capital_cost_bps,
+        capital_cost_bps=cap_bps,
         capital_cost_quote=capital_cost_quote,
         total_cost_bps=total_cost_bps,
         total_cost_quote=to_quote(total_cost_bps),
