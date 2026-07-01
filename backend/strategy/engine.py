@@ -136,7 +136,10 @@ def backtest(
     out.sell_all = sell_all
 
     n = len(candles)
-    if e_idx <= s_idx or n == 0 or upper <= lower or grids < 2:
+    # Guard degenerate inputs up front: a zero/negative lower bound would divide by
+    # zero in build_levels (geometric) and profit_per_grid_pct; invest<=0 would
+    # divide by zero in apr. All produce an empty (zeroed) result rather than crash.
+    if e_idx <= s_idx or n == 0 or upper <= lower or grids < 2 or lower <= 0 or invest <= 0:
         return out
     s_idx = int(clamp(s_idx, 0, n - 1))
     e_idx = int(clamp(e_idx, 0, n - 1))

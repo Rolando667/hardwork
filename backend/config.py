@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     db_path: str = "gridbot.db"
+    # Optional shared secret for the control API. When set, state-changing
+    # endpoints (start/stop/panic/resume/keys) require an X-Auth-Token header.
+    # Strongly recommended if you bind the server to anything but localhost.
+    dashboard_token: SecretStr = SecretStr("")
 
     @field_validator("grid_mode")
     @classmethod
@@ -166,6 +170,7 @@ class Settings(BaseSettings):
             "use_ai": self.use_ai,
             "ai_model": self.ai_model if self.use_ai else None,
             "has_keys": bool(self.api_key.get_secret_value() and self.api_secret.get_secret_value()),
+            "auth_required": bool(self.dashboard_token.get_secret_value()),
         }
 
 

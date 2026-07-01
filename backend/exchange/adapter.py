@@ -177,30 +177,46 @@ class LiveAdapter(Adapter):
     def _refuse_if_withdrawal_scope(self) -> None:
         """Refuse to run if the key can withdraw (where the exchange reports it).
 
-        Best-effort and per-exchange: Binance exposes apiRestrictions; for
-        exchanges that don't report it we warn and continue (the user is told to
-        scope keys to trade-only with an IP allow-list in the README).
+        On Binance (which exposes apiRestrictions) we **fail closed in live mode**:
+        if the key reports withdrawal scope, or if we cannot verify it at all, we
+        refuse to start — a live key that can drain the account is exactly what
+        this check exists to stop. On testnet (fake funds, and sandboxes may lack
+        the endpoint) we warn and continue. For exchanges that don't report scope,
+        we warn (the README instructs trade-only keys + IP allow-list).
         """
         ex = self.ex
-        try:
-            if self.settings.exchange in ("binance", "binanceus") and hasattr(
-                ex, "sapi_get_account_apirestrictions"
-            ):
-                r = _retry(ex.sapi_get_account_apirestrictions)
-                if str(r.get("enableWithdrawals", "")).lower() == "true" or r.get(
-                    "enableWithdrawals"
-                ) is True:
+        is_live = self.settings.mode == Mode.LIVE
+        if self.settings.exchange in ("binance", "binanceus"):
+            if not hasattr(ex, "sapi_get_account_apirestrictions"):
+                if is_live:
                     raise ExchangeError(
-                        "API key has WITHDRAWAL permission enabled. Refusing to run. "
-                        "Create a key with trade permission only (no withdrawals) and "
-                        "set an IP allow-list."
+                        "cannot verify API-key permissions on this ccxt build; "
+                        "refusing to start live for safety."
                     )
+                print("[adapter] cannot verify withdrawal scope on testnet; continuing (fake funds).")
                 return
-        except ExchangeError:
-            raise
-        except Exception as e:  # noqa: BLE001 - best-effort probe
-            print(f"[adapter] could not verify withdrawal scope ({e}); "
-                  "ensure your key is trade-only with an IP allow-list.")
+            try:
+                r = _retry(ex.sapi_get_account_apirestrictions)
+            except Exception as e:  # noqa: BLE001
+                if is_live:
+                    raise ExchangeError(
+                        f"could not verify API-key permissions ({e}); refusing to start "
+                        "live. Check the key is valid, IP-allowlisted, and trade-only."
+                    )
+                print(f"[adapter] could not verify withdrawal scope on testnet ({e}); continuing (fake funds).")
+                return
+            enabled = r.get("enableWithdrawals")
+            if enabled is True or str(enabled).lower() == "true":
+                raise ExchangeError(
+                    "API key has WITHDRAWAL permission enabled. Refusing to run. "
+                    "Create a key with trade permission only (no withdrawals) and "
+                    "set an IP allow-list."
+                )
+            return
+        # exchanges ccxt doesn't standardise scope reporting for
+        msg = (f"[adapter] cannot verify withdrawal scope on '{self.settings.exchange}'; "
+               "ensure the key is trade-only with an IP allow-list.")
+        print(("[LIVE] " if is_live else "") + msg)
 
     def market_price(self) -> float:
         t = _retry(lambda: self.ex.fetch_ticker(self.symbol))

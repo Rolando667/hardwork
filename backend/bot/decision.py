@@ -119,15 +119,26 @@ def evaluate(
                         candidate=cand, validated=validated, metrics=m, walk_forward=wf)
 
     cfg = active.config
-    grid_step = (cfg.upper - cfg.lower) / cfg.grids if cfg.grids else 0.0
+
+    # A geometric grid's cell width varies (small near lower, large near upper), so
+    # a single flat average would mis-size the band. Use the actual boundary cell
+    # widths from the deployed levels: the top cell for the upper band, the bottom
+    # cell for the lower band. Fall back to the flat average if levels are absent.
+    avg_step = (cfg.upper - cfg.lower) / cfg.grids if cfg.grids else 0.0
+    lv = active.levels
+    if lv and len(lv) >= 2:
+        top_step = lv[-1] - lv[-2]
+        bot_step = lv[1] - lv[0]
+    else:
+        top_step = bot_step = avg_step
 
     triggers: list[str] = []
     detail_reasons: list[str] = []
 
-    # trigger 1: price left the active range by > band_pct of a grid step
-    if grid_step > 0:
-        upper_band = cfg.upper + settings.band_pct * grid_step
-        lower_band = cfg.lower - settings.band_pct * grid_step
+    # trigger 1: price left the active range by > band_pct of a (boundary) grid step
+    if avg_step > 0:
+        upper_band = cfg.upper + settings.band_pct * top_step
+        lower_band = cfg.lower - settings.band_pct * bot_step
         if price > upper_band:
             triggers.append("price_above_band")
             detail_reasons.append(

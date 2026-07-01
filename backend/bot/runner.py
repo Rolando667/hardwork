@@ -76,6 +76,7 @@ class BotRunner:
             set_atr_pct=float(s["set_atr_pct"]),
             set_time=float(s["set_time"]),
             levels=list(s.get("levels", [])),
+            fills_at_set=int(s.get("fills_at_set", 0)),
         )
 
     def _persist_active(self) -> None:
@@ -229,6 +230,15 @@ class BotRunner:
         }
         metrics = compute_live_metrics(candles, params)
 
+        # In live/testnet the fill-rate trigger should reflect the ACTUAL grid's
+        # activity since it was deployed (real fills), not a full-history backtest
+        # average of the current config. Override the metric used by the decision.
+        # (In dry_run there are no real fills, so the backtest proxy is kept.)
+        if s.mode in (Mode.TESTNET, Mode.LIVE) and self.active is not None:
+            age_days = max(1e-9, (time.time() - self.active.set_time) / 86400.0)
+            fills_since = max(0, self.fills.count - self.active.fills_at_set)
+            metrics.fill_rate_per_day = fills_since / age_days
+
         # 3. PnL
         if s.mode == Mode.DRY_RUN:
             r = metrics.result
@@ -349,23 +359,39 @@ class BotRunner:
         seeded = [i for i in range(cells) if levels[i] >= price]
         seed_qty = len(seeded) * q
 
-        # cancel stale orders (any epoch) — cancel-then-place
-        cancelled = 0
+        # Cancel stale orders (any epoch) first. If we cannot CONFIRM cancellation,
+        # abort before placing — otherwise we'd stack a new ladder on top of live
+        # prior-epoch orders (double capital commitment). The prior grid belief is
+        # left intact; the next cycle reconciles and retries.
         try:
             cancelled = self.adapter.cancel_all()
         except Exception as e:  # noqa: BLE001
-            self.store.log("error", "reposition", f"cancel_all failed: {e}", {}, cyc)
+            self.store.log("error", "reposition",
+                           f"cancel_all failed; aborting reposition to avoid stacked orders: {e}",
+                           {"epoch": new_epoch}, cyc)
+            return
 
-        placed = 0
-        skipped = 0
+        # If a panic fired between the decision and here, stop (halt flag is set
+        # before panic takes the cycle lock, so it's visible now).
+        if self.safety.is_halted():
+            self.store.log("safety", "reposition", "halted mid-reposition; no orders placed",
+                           {"epoch": new_epoch}, cyc)
+            return
+
         # seed inventory for the sell side (no-op in dry-run)
+        seeded_ok = True
         try:
             if seed_qty > 0:
                 self.adapter.seed_inventory(seed_qty)
         except Exception as e:  # noqa: BLE001
+            seeded_ok = False
             self.store.log("error", "reposition", f"seed_inventory failed: {e}", {}, cyc)
 
+        placed = 0
+        skipped = 0
         for i in range(cells):
+            if self.safety.is_halted():  # abort remaining placements if panic fired mid-loop
+                break
             try:
                 if levels[i] >= price:
                     o = self.adapter.place_limit("sell", levels[i + 1], q, f"gb-{new_epoch}-s-{i}")
@@ -379,9 +405,21 @@ class BotRunner:
                 skipped += 1
                 self.store.log("error", "reposition", f"place failed at level {i}: {e}", {}, cyc)
 
+        # If nothing landed, do NOT record a phantom active grid. In a real mode
+        # this can mean seeded-but-unhedged inventory — halt so the operator sees it.
+        if placed == 0:
+            naked = s.mode != Mode.DRY_RUN and seed_qty > 0 and seeded_ok
+            self.store.log("error", "reposition",
+                           "reposition placed 0 orders" + (" with seeded inventory (NAKED)" if naked else ""),
+                           {"epoch": new_epoch, "cancelled": cancelled, "seed_qty": seed_qty}, cyc)
+            if s.mode != Mode.DRY_RUN:
+                self.panic("reposition failed: 0 orders placed" + (" (naked inventory)" if naked else ""))
+            return
+
         self.active = ActiveGrid(
             config=cand, epoch=new_epoch, set_price=price,
             set_atr_pct=metrics.atr_pct, set_time=time.time(), levels=levels,
+            fills_at_set=self.fills.count,
         )
         self._persist_active()
         self.safety.record_reposition()

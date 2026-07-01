@@ -26,8 +26,12 @@ def realized_vol_daily(daily_candles: list[dict[str, Any]]) -> dict[str, float] 
         return None
     rets: list[float] = []
     for i in range(1, len(daily_candles)):
-        if daily_candles[i - 1]["c"] > 0:
-            rets.append(math.log(daily_candles[i]["c"] / daily_candles[i - 1]["c"]))
+        prev_c = daily_candles[i - 1]["c"]
+        cur_c = daily_candles[i]["c"]
+        # both closes must be positive — a zero/negative bar (gap, delisting, bad
+        # data) would otherwise raise a math domain error on log().
+        if prev_c > 0 and cur_c > 0:
+            rets.append(math.log(cur_c / prev_c))
     if not rets:
         return None
     mean = sum(rets) / len(rets)

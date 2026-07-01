@@ -8,8 +8,22 @@ const usd = (n) => (n == null || isNaN(n)) ? "—" : `${sign(n)}$${fmt(Math.abs(
 
 let CFG = null;
 
-async function api(path, opts) {
-  const r = await fetch(path, opts);
+// Optional dashboard auth token (only needed if DASHBOARD_TOKEN is set server-side).
+// Kept in sessionStorage, NOT localStorage, and never persisted to disk.
+const getToken = () => sessionStorage.getItem("gb_token") || "";
+
+async function api(path, opts = {}) {
+  const tok = getToken();
+  opts.headers = Object.assign({}, opts.headers, tok ? { "X-Auth-Token": tok } : {});
+  let r = await fetch(path, opts);
+  if (r.status === 401) {
+    const t = prompt("Dashboard auth token required:");
+    if (t) {
+      sessionStorage.setItem("gb_token", t);
+      opts.headers["X-Auth-Token"] = t;
+      r = await fetch(path, opts);
+    }
+  }
   return r.json();
 }
 

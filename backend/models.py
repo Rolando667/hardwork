@@ -28,6 +28,7 @@ class ActiveGrid:
     set_atr_pct: float               # ATR% when the grid was deployed
     set_time: float                  # unix seconds
     levels: list[float] = field(default_factory=list)
+    fills_at_set: int = 0            # FillTracker.count when the grid was deployed
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +38,7 @@ class ActiveGrid:
             "set_atr_pct": self.set_atr_pct,
             "set_time": self.set_time,
             "levels": self.levels,
+            "fills_at_set": self.fills_at_set,
         }
 
 

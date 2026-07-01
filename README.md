@@ -111,7 +111,20 @@ On the dashboard: review the metrics and the "last decision + why", then press
 
 The backend **refuses to start** if the API key reports withdrawal scope (where
 the exchange exposes it, e.g. Binance), and refuses `live` without `ALLOW_LIVE`
-and a capital cap.
+and a capital cap. On Binance in **live** mode this check fails *closed* — if the
+key's permissions can't be verified at all, it refuses to start. Exchanges that
+don't report scope through ccxt can't be verified automatically, so scope your
+key to trade-only and set an IP allow-list regardless.
+
+### Exposing the dashboard beyond localhost
+
+By default the server binds to `127.0.0.1` and the control endpoints are
+unauthenticated (fine for local use). If you bind it to a routable interface or
+put it behind a proxy, set `DASHBOARD_TOKEN` — the control endpoints
+(`start`/`stop`/`panic`/`resume`/`keys`) then require an `X-Auth-Token` header,
+and the bundled UI will prompt for it once (kept in `sessionStorage`, never on
+disk). Prefer running it behind an authenticating reverse proxy for anything
+public.
 
 ---
 
@@ -133,7 +146,9 @@ withdrawals.
 - **Kill-switch / panic** — one dashboard button and `POST /api/panic` cancel all
   open orders and halt. The halt is sticky until you clear it.
 - **Daily loss limit** — if intraday realized+floating PnL breaches
-  `-MAX_DAILY_LOSS`, the bot panics and halts.
+  `-MAX_DAILY_LOSS`, the bot panics and halts. In `testnet`/`live` this is driven
+  by real fills (fund-accurate); in `dry_run` it is derived from the rolling
+  backtest and is illustrative only (no funds are at risk there).
 - **Startup reconcile** — state is synced to the exchange before acting.
 - **Structured action log** (SQLite) — every decision with its trigger reason.
 - **Throttle + rate-limit aware** — cooldown, daily cap, exponential backoff.

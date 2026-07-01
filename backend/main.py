@@ -13,7 +13,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from .bot.runner import BotRunner
 from .config import Mode, get_settings, reload_settings
 from .db import Store
-from .env_writer import update_env
+from .env_writer import EnvWriteError, update_env
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 ENV_PATH = os.path.join(os.getcwd(), ".env")
@@ -82,7 +82,12 @@ state: App | None = None
 async def lifespan(app: FastAPI):
     global state
     state = App()
-    state.ws.loop = asyncio.get_event_loop()
+    state.ws.loop = asyncio.get_running_loop()
+    if state.settings.host not in ("127.0.0.1", "localhost", "::1") and not \
+            state.settings.dashboard_token.get_secret_value():
+        print("[main] WARNING: server is bound to a non-loopback host without a "
+              "DASHBOARD_TOKEN — control endpoints are unauthenticated. Set "
+              "DASHBOARD_TOKEN or put the app behind an authenticating proxy.")
     # Fire-and-forget initial reconcile so the dashboard gets data shortly after
     # boot — NOT awaited, so a slow/blocked exchange never delays server bind.
     state.ws.loop.run_in_executor(None, _safe_initial_cycle)
@@ -103,6 +108,17 @@ def _safe_initial_cycle() -> None:
 
 
 app = FastAPI(title="Self-Regulating Spot Grid Bot", lifespan=lifespan)
+
+
+def require_auth(x_auth_token: str | None = Header(default=None)) -> None:
+    """Gate state-changing endpoints when a DASHBOARD_TOKEN is configured.
+
+    No token configured => open (fine for the default localhost bind). When set,
+    every control call must present a matching ``X-Auth-Token`` header.
+    """
+    tok = state.settings.dashboard_token.get_secret_value()  # type: ignore[union-attr]
+    if tok and x_auth_token != tok:
+        raise HTTPException(status_code=401, detail="invalid or missing X-Auth-Token")
 
 
 # ----------------------------------------------------------------- API models
@@ -151,7 +167,7 @@ def log(limit: int = 100) -> dict[str, Any]:
     return {"actions": state.store.recent_actions(limit=min(500, max(1, limit)))}  # type: ignore[union-attr]
 
 
-@app.post("/api/start")
+@app.post("/api/start", dependencies=[Depends(require_auth)])
 def start() -> dict[str, Any]:
     if state.settings.is_live and not state.settings.allow_live:  # type: ignore[union-attr]
         return JSONResponse({"error": "live mode requires ALLOW_LIVE"}, status_code=400)
@@ -159,24 +175,24 @@ def start() -> dict[str, Any]:
     return {"running": True}
 
 
-@app.post("/api/stop")
+@app.post("/api/stop", dependencies=[Depends(require_auth)])
 def stop() -> dict[str, Any]:
     state.runner.stop()  # type: ignore[union-attr]
     return {"running": False}
 
 
-@app.post("/api/panic")
+@app.post("/api/panic", dependencies=[Depends(require_auth)])
 def panic() -> dict[str, Any]:
     return state.runner.panic("manual panic (UI)")  # type: ignore[union-attr]
 
 
-@app.post("/api/resume")
+@app.post("/api/resume", dependencies=[Depends(require_auth)])
 def resume() -> dict[str, Any]:
     state.runner.resume()  # type: ignore[union-attr]
     return {"halted": False}
 
 
-@app.post("/api/config/keys")
+@app.post("/api/config/keys", dependencies=[Depends(require_auth)])
 def set_keys(body: KeysIn) -> dict[str, Any]:
     """Persist config + keys to the server-side .env, then rebuild the runner.
 
@@ -194,7 +210,10 @@ def set_keys(body: KeysIn) -> dict[str, Any]:
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": f"invalid config: {e}"}, status_code=400)
 
-    changed = update_env(ENV_PATH, updates)
+    try:
+        changed = update_env(ENV_PATH, updates)
+    except EnvWriteError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     state.rebuild()  # type: ignore[union-attr]
     # record which env vars changed — names only, never values
     state.store.log("info", "config", "config updated via setup", {"changed_vars": changed})  # type: ignore[union-attr]

@@ -11,6 +11,12 @@ realized / floating split the calculator uses:
 
 In ``dry_run`` there are no fills; the runner sources PnL straight from the
 strategy engine over recent klines instead.
+
+Dedup is bounded correctly: we fetch with ``since = last_trade_ts`` (inclusive on
+most exchanges), so the only trades ever re-seen are those sharing the newest
+millisecond. We therefore persist just the IDs at that boundary timestamp — a
+tiny, bounded set that survives restarts without ever dropping a dedup key (the
+earlier "keep last N ids" approach could drop boundary keys and double-count).
 """
 from __future__ import annotations
 
@@ -24,8 +30,9 @@ class FillTracker:
         self.inventory_qty = 0.0
         self.inventory_cost = 0.0     # total quote cost basis of held inventory
         self.realized = 0.0
-        self.last_trade_ts = 0        # ms; for incremental fetch
-        self.seen_ids: set[str] = set()
+        self.last_trade_ts = 0        # ms; watermark for incremental fetch
+        self.count = 0                # total fills applied (for live fill-rate)
+        self.boundary_ids: set[str] = set()  # ids at ts == last_trade_ts (dedup)
 
     def to_state(self) -> dict[str, Any]:
         return {
@@ -33,7 +40,8 @@ class FillTracker:
             "inventory_cost": self.inventory_cost,
             "realized": self.realized,
             "last_trade_ts": self.last_trade_ts,
-            "seen_ids": list(self.seen_ids)[-5000:],  # bound persisted size
+            "count": self.count,
+            "boundary_ids": list(self.boundary_ids),
         }
 
     @classmethod
@@ -45,7 +53,8 @@ class FillTracker:
         ft.inventory_cost = float(s.get("inventory_cost", 0))
         ft.realized = float(s.get("realized", 0))
         ft.last_trade_ts = int(s.get("last_trade_ts", 0))
-        ft.seen_ids = set(s.get("seen_ids", []))
+        ft.count = int(s.get("count", 0))
+        ft.boundary_ids = set(s.get("boundary_ids", []))
         return ft
 
     def ingest(self, trades: list[dict[str, Any]], base: str, quote: str) -> int:
@@ -53,12 +62,12 @@ class FillTracker:
         applied = 0
         for tr in sorted(trades, key=lambda x: x.get("ts", 0)):
             tid = str(tr.get("id"))
-            if tid in self.seen_ids:
-                continue
-            self.seen_ids.add(tid)
             ts = int(tr.get("ts", 0))
-            if ts > self.last_trade_ts:
-                self.last_trade_ts = ts
+            if ts < self.last_trade_ts:
+                continue  # older than the watermark — already processed
+            if ts == self.last_trade_ts and tid in self.boundary_ids:
+                continue  # boundary duplicate — already seen this exact fill
+
             side = tr.get("side")
             price = float(tr.get("price", 0))
             amount = float(tr.get("amount", 0))
@@ -81,7 +90,14 @@ class FillTracker:
                 if self.inventory_qty < 1e-12:
                     self.inventory_qty = 0.0
                     self.inventory_cost = 0.0
+
+            self.count += 1
             applied += 1
+            if ts > self.last_trade_ts:
+                self.last_trade_ts = ts
+                self.boundary_ids = {tid}
+            else:  # ts == last_trade_ts
+                self.boundary_ids.add(tid)
         return applied
 
     def pnl(self, price: float) -> PnL:

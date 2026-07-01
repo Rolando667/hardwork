@@ -58,9 +58,18 @@ def _read_env(path: str) -> dict[str, str]:
     return env
 
 
+class EnvWriteError(ValueError):
+    """Raised when a submitted value is unsafe to write to .env."""
+
+
 def update_env(path: str, updates: dict[str, Any]) -> list[str]:
     """Merge ``updates`` (field-name keyed) into ``path``. Returns changed env vars
-    (secret values are never returned, only the variable names)."""
+    (secret values are never returned, only the variable names).
+
+    Values containing newlines are REJECTED: a ``\\n`` would otherwise write extra
+    physical lines that parse as independent variables — a config-injection that
+    could flip MODE=live or clobber the capital cap through the setup endpoint.
+    """
     env = _read_env(path)
     changed: list[str] = []
     for field, value in updates.items():
@@ -73,6 +82,8 @@ def update_env(path: str, updates: dict[str, Any]) -> list[str]:
             sval = "true" if value else "false"
         else:
             sval = str(value)
+        if "\n" in sval or "\r" in sval:
+            raise EnvWriteError(f"value for {field} contains a newline; refusing to write .env")
         # don't blow away an existing secret with an empty submission
         if field in SECRET_FIELDS and sval == "":
             continue
@@ -80,9 +91,19 @@ def update_env(path: str, updates: dict[str, Any]) -> list[str]:
         changed.append(var)
 
     lines = [f"{k}={v}" for k, v in env.items()]
+    # Create the (secret-bearing) temp file 0600 from the start, so there is no
+    # window where it exists world-readable before chmod.
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     os.replace(tmp, path)
     try:
         os.chmod(path, 0o600)

@@ -73,11 +73,22 @@ class Safety:
 
     # ---- daily loss limit ----
     def check_daily_loss(self, total_pnl: float) -> tuple[bool, float]:
-        """Update intraday baseline and return ``(breached, intraday_pnl)``."""
+        """Update intraday baseline and return ``(breached, intraday_pnl)``.
+
+        On a UTC day rollover the baseline is anchored to the **last observed
+        total** (the end of the prior day), not the current one — otherwise a loss
+        that lands on the very first cycle of a new day would be masked (baseline
+        re-anchored to the already-depressed total => intraday 0). ``last_total``
+        is persisted every call so the reference survives restarts.
+        """
         d = self.store.get_state("daily_pnl", {})
         if d.get("day") != _utc_day():
-            d = {"day": _utc_day(), "baseline_total": total_pnl}
-            self.store.set_state("daily_pnl", d)
+            prev_last = d.get("last_total")
+            baseline = float(prev_last) if prev_last is not None else total_pnl
+            d = {"day": _utc_day(), "baseline_total": baseline, "last_total": total_pnl}
+        else:
+            d["last_total"] = total_pnl
+        self.store.set_state("daily_pnl", d)
         intraday = total_pnl - float(d.get("baseline_total", total_pnl))
         breached = intraday <= -abs(self.settings.max_daily_loss)
         return breached, intraday
