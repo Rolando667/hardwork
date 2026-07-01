@@ -1,0 +1,209 @@
+"""Load and validate config.yaml (+ .env) into typed config dataclasses.
+
+Nothing in the codebase hardcodes a threshold — it all flows from here. The
+small, focused config dataclasses are passed into the pure engines (fees,
+sizing) so those stay free of YAML/dict access.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import yaml
+from dotenv import load_dotenv
+
+
+@dataclass(frozen=True)
+class MarketConfig:
+    type: str = "swap"
+    contract: str = "linear"
+    settle: str = "USDT"
+
+
+@dataclass(frozen=True)
+class UniverseConfig:
+    top_n: int = 20
+    min_quote_volume_24h: float = 1_000_000.0
+    recalc_each_loop: bool = True
+
+
+@dataclass(frozen=True)
+class ThresholdsConfig:
+    entry_net_spread_bps: float = 35.0
+
+
+@dataclass(frozen=True)
+class SizingConfig:
+    target_notional_quote: float = 100.0
+    residual_tolerance_frac: float = 0.01
+
+
+@dataclass(frozen=True)
+class FeesConfig:
+    taker_only: bool = True
+    slippage_bps: float = 5.0
+    count_exit_crossing: bool = True
+    capital_cost_annual_bps: float = 1000.0
+    expected_hold_hours: float = 8.0
+    funding_horizon_hours: float = 8.0
+    default_funding_interval_hours: float = 8.0
+    # exchange -> {"maker": float, "taker": float}
+    overrides: dict[str, dict[str, float]] = field(default_factory=dict)
+
+    def fee_override(self, exchange: str) -> dict[str, float] | None:
+        return self.overrides.get(exchange)
+
+
+@dataclass(frozen=True)
+class RuntimeConfig:
+    loop: bool = True
+    loop_interval_seconds: float = 30.0
+    request_timeout_ms: int = 15000
+    log_level: str = "INFO"
+
+
+@dataclass(frozen=True)
+class WebConfig:
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+
+@dataclass(frozen=True)
+class SimExitConfig:
+    convergence_bps: float = 5.0     # take profit when the gross spread narrows to <= this
+    stop_adverse_bps: float = 25.0   # stop out when the spread widens this much beyond entry
+    max_hold_seconds: float = 3600.0  # force close after this
+
+
+@dataclass(frozen=True)
+class SimLeggingConfig:
+    delay_ms: float = 250.0              # gap between leg-1 and leg-2 fills
+    adverse_bps_per_100ms: float = 0.5  # spread decay during that gap -> worse entry
+    one_leg_fill_prob: float = 0.02     # chance leg-2 never fills -> emergency close leg-1
+    seed: int = 42                      # RNG seed for reproducible paper runs
+
+
+@dataclass(frozen=True)
+class SimulatorConfig:
+    # Entry trigger: open a paper position when the GROSS spread is at least this
+    # wide (a real dislocation to bet on converging). Whether it is *profitable*
+    # after costs is exactly what the simulator measures. Set low to exercise the
+    # harness on these venues, where liquid-coin edges are thin/negative.
+    entry_gross_bps: float = 15.0
+    # Optional secondary gate on expected net (exit at convergence). -inf = off.
+    min_expected_net_bps: float = -1.0e9
+    max_open_positions: int = 20
+    journal_path: str = "logs/paper_trades.jsonl"
+    exit: SimExitConfig = field(default_factory=SimExitConfig)
+    legging: SimLeggingConfig = field(default_factory=SimLeggingConfig)
+
+
+@dataclass(frozen=True)
+class LiveExitConfig:
+    convergence_bps: float = 5.0
+    stop_adverse_bps: float = 25.0
+
+
+@dataclass(frozen=True)
+class LiveConfig:
+    # MASTER SWITCH. false => DRY_RUN: log intended orders, place nothing real.
+    live_trading: bool = False
+    require_confirmation: bool = True   # interactive "type LIVE" gate at startup when live
+    position_mode: str = "one-way"      # one-way | hedge  (set explicitly, per exchange)
+    margin_mode: str = "isolated"       # isolated | cross
+    leg_fill_timeout_ms: float = 3000.0  # 2nd leg must fill within this or leg-1 is unwound
+    entry_net_spread_bps: float = 40.0   # only act on signals wider than this
+    max_hold_seconds: float = 3600.0
+    poll_interval_seconds: float = 5.0
+    # DRY_RUN simulation knobs (exercise the safety paths without a real venue):
+    dry_run_slippage_bps: float = 1.0
+    dry_run_one_leg_fail_prob: float = 0.0  # set >0 to force the emergency-close path
+    exit: LiveExitConfig = field(default_factory=LiveExitConfig)
+
+
+@dataclass(frozen=True)
+class Config:
+    phase: str
+    strategy: str
+    exchanges: list[str]
+    market: MarketConfig
+    universe: UniverseConfig
+    thresholds: ThresholdsConfig
+    sizing: SizingConfig
+    fees: FeesConfig
+    runtime: RuntimeConfig
+    web: WebConfig
+    simulator: SimulatorConfig
+    live: LiveConfig
+
+
+def load_config(path: str | Path = "config.yaml") -> Config:
+    """Read config.yaml, overlay environment, and validate into a Config."""
+    # .env is loaded for later phases; P0 needs no keys but loading is harmless.
+    load_dotenv()
+
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"config file not found: {path}")
+
+    raw = yaml.safe_load(path.read_text()) or {}
+
+    exchanges = [str(e).lower() for e in raw.get("exchanges", [])]
+    if len(exchanges) < 2:
+        raise ValueError(
+            "config 'exchanges' must list at least 2 exchanges (arbitrage needs >=2 venues)"
+        )
+
+    market = MarketConfig(**_section(raw, "market"))
+    if market.contract != "linear":
+        raise ValueError("P0 supports linear contracts only; set market.contract: linear")
+
+    fees_raw = _section(raw, "fees")
+    overrides = {str(k).lower(): dict(v) for k, v in (fees_raw.pop("overrides", {}) or {}).items()}
+    fees = FeesConfig(overrides=overrides, **fees_raw)
+
+    sim_raw = _section(raw, "simulator")
+    exit_cfg = SimExitConfig(**(sim_raw.pop("exit", {}) or {}))
+    legging_cfg = SimLeggingConfig(**(sim_raw.pop("legging", {}) or {}))
+    simulator = SimulatorConfig(exit=exit_cfg, legging=legging_cfg, **sim_raw)
+
+    live_raw = _section(raw, "live")
+    live_exit = LiveExitConfig(**(live_raw.pop("exit", {}) or {}))
+    live = LiveConfig(exit=live_exit, **live_raw)
+    if live.position_mode not in ("one-way", "hedge"):
+        raise ValueError("live.position_mode must be 'one-way' or 'hedge'")
+    if live.margin_mode not in ("isolated", "cross"):
+        raise ValueError("live.margin_mode must be 'isolated' or 'cross'")
+
+    cfg = Config(
+        phase=str(raw.get("phase", "p0")),
+        strategy=str(raw.get("strategy", "cross_exchange_spread")),
+        exchanges=exchanges,
+        market=market,
+        universe=UniverseConfig(**_section(raw, "universe")),
+        thresholds=ThresholdsConfig(**_section(raw, "thresholds")),
+        sizing=SizingConfig(**_section(raw, "sizing")),
+        fees=fees,
+        runtime=RuntimeConfig(**_section(raw, "runtime")),
+        web=WebConfig(**_section(raw, "web")),
+        simulator=simulator,
+        live=live,
+    )
+
+    # Allow env to override the log level for quick debugging without editing yaml.
+    env_level = os.getenv("LOG_LEVEL")
+    if env_level:
+        cfg = Config(**{**cfg.__dict__, "runtime": RuntimeConfig(
+            **{**cfg.runtime.__dict__, "log_level": env_level})})
+
+    return cfg
+
+
+def _section(raw: dict, key: str) -> dict:
+    """Return a config subsection as a plain dict (empty if absent)."""
+    value = raw.get(key) or {}
+    if not isinstance(value, dict):
+        raise ValueError(f"config section '{key}' must be a mapping")
+    return dict(value)

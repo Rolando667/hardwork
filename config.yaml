@@ -1,0 +1,118 @@
+# =============================================================================
+# Phase 1 (P0) scanner configuration.
+# Nothing is hardcoded in the source — every threshold lives here and is tunable.
+# All durations in the runtime block are documented inline. Times are UTC internally.
+# =============================================================================
+
+phase: p0                       # only "p0" is implemented; later phases reuse this file
+strategy: cross_exchange_spread # perp-perp price spread (the main strategy)
+
+# Exchanges to attempt. Any that fail to load (network block, downtime) are logged
+# and skipped — the scanner runs on whatever loads. In a restricted network,
+# Binance/Bybit may be unreachable; OKX/MEXC/Gate are commonly reachable.
+exchanges:
+  - binance
+  - bybit
+  - okx
+  - mexc
+  - gate
+
+# Market selection. P0 is linear (USDT-margined) swaps only. Inverse is excluded
+# (convexity mismatch — cannot be hedged 1:1 against linear).
+market:
+  type: swap
+  contract: linear
+  settle: USDT
+
+# Universe auto-discovery. The scanner forms its own coin list each loop:
+# intersection of coins listed on >= 2 exchanges, filtered by volume, top-N by volume.
+universe:
+  top_n: 20                     # monitor the N most-liquid eligible coins
+  min_quote_volume_24h: 1000000 # USDT; drop coins thinner than this on every venue
+  recalc_each_loop: true        # P0 rebuilds the universe each scan (periodic recalc is P1)
+
+# Signal threshold. A coin/pair is a signal when net_spread (after the full cost
+# stack) clears this. Break-even on liquid tier-1 coins is ~25-30 bps, so 35 is tight.
+thresholds:
+  entry_net_spread_bps: 35
+
+# Symmetric leg sizing. Both legs must be equal in COIN quantity (delta-neutral).
+sizing:
+  target_notional_quote: 100    # USDT notional per leg we try to size to
+  residual_tolerance_frac: 0.01 # max |leg1-leg2|/size allowed before flagging imbalance
+
+# Cost model — the single source of truth for profit/loss accounting.
+fees:
+  taker_only: true              # P0 crosses the book on all legs (taker on entry+exit)
+  # Slippage BEYOND top-of-book, applied PER crossing leg. With a full round-trip
+  # (4 taker legs) the total is 4x this. The half-spread (book crossing) is modeled
+  # separately, so this is only the extra from walking deeper. 2 bps/leg (~8 bps
+  # total) keeps break-even near the spec's stated ~25-30 bps on liquid coins;
+  # raise it to be more conservative, lower it once P1 computes slippage from L2 depth.
+  slippage_bps: 2
+  count_exit_crossing: true     # model the FULL round-trip (4 taker legs), not just entry
+  capital_cost_annual_bps: 1000 # opportunity cost of frozen capital, annualized (10%/yr)
+  expected_hold_hours: 8        # assumed holding time, used for capital + funding accrual
+  funding_horizon_hours: 8      # window over which net funding is accrued for the estimate
+  default_funding_interval_hours: 8  # fallback ONLY when an exchange's interval can't be read
+  # Per-exchange fee overrides for YOUR actual VIP tier / native-token discount /
+  # referral. CCXT does not know your tier. Values are fractions (0.0004 = 0.04%).
+  # Omit an exchange to fall back to market['maker']/market['taker'] from ccxt.
+  overrides:
+    binance: { maker: 0.0002,  taker: 0.0004 }
+    bybit:   { maker: 0.0002,  taker: 0.00055 }
+    okx:     { maker: 0.0002,  taker: 0.0005 }
+    mexc:    { maker: 0.0000,  taker: 0.0004 }
+    gate:    { maker: 0.0002,  taker: 0.0005 }
+
+runtime:
+  loop: true                    # repeat scans; false = single pass then exit
+  loop_interval_seconds: 30     # pause between scans (also the dashboard refresh)
+  request_timeout_ms: 15000     # per-request ccxt timeout
+  log_level: INFO               # DEBUG | INFO | WARNING | ERROR
+
+# Read-only web dashboard (run with: python main.py web). Same data as the console.
+web:
+  host: 127.0.0.1               # use 0.0.0.0 to expose on your LAN (still read-only)
+  port: 8000
+
+# Phase 2 — paper simulator (run with: python main.py sim). NO real orders.
+# It opens virtual positions on wide gross spreads, holds, and closes on
+# convergence / stop / timeout, accounting P&L through the same fees/ engine.
+simulator:
+  # Open a paper trade when the GROSS cross-exchange spread is at least this wide.
+  # Profitability after costs is what the sim MEASURES — on liquid coins at $100
+  # most trades net negative (there is no free edge). Keep this modest to exercise
+  # the harness; raise it to only bet on larger dislocations.
+  entry_gross_bps: 15
+  min_expected_net_bps: -1000000000   # optional gate on expected net (exit@convergence); off by default
+  max_open_positions: 20
+  journal_path: logs/paper_trades.jsonl
+  exit:
+    convergence_bps: 5          # take profit when the spread narrows to <= this
+    stop_adverse_bps: 25        # stop out when the spread widens this much beyond entry
+    max_hold_seconds: 3600      # force close after this long
+  legging:
+    delay_ms: 250               # gap between leg-1 and leg-2 fills
+    adverse_bps_per_100ms: 0.5  # spread decay during the gap -> worse effective entry
+    one_leg_fill_prob: 0.02     # chance leg-2 never fills -> emergency close leg-1 at a loss
+    seed: 42                    # RNG seed for reproducible paper runs
+
+# Phase 3 — live executor (run with: python main.py live).
+# DEFAULT IS DRY_RUN: it logs intended orders and simulates fills, places NOTHING
+# real. Real trading needs BOTH live_trading: true AND typing LIVE at the prompt.
+live:
+  live_trading: false          # MASTER SWITCH. Keep false until you have tested extensively.
+  require_confirmation: true    # interactive "type LIVE" gate when live_trading is true
+  position_mode: one-way        # one-way | hedge  (set explicitly per exchange, not defaulted)
+  margin_mode: isolated         # isolated | cross
+  leg_fill_timeout_ms: 3000     # if the 2nd leg is not filled within this -> emergency close leg-1
+  entry_net_spread_bps: 40      # only act on signals wider than this (above the scanner's 35)
+  max_hold_seconds: 3600        # force-close after this long
+  poll_interval_seconds: 5
+  # DRY_RUN-only knobs to exercise the safety paths without a real venue:
+  dry_run_slippage_bps: 1       # simulated taker slippage on fills
+  dry_run_one_leg_fail_prob: 0  # set e.g. 0.3 to force one-leg-fills -> emergency close path
+  exit:
+    convergence_bps: 5          # take profit when the spread narrows to <= this
+    stop_adverse_bps: 25        # stop out when it widens this much beyond entry
