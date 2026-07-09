@@ -1,0 +1,37 @@
+{
+  "anthropic_thinking_budget": {
+    "none": null,
+    "minimal": 1024,
+    "low": 1024,
+    "medium": 8192,
+    "high": 24576
+  },
+  "anthropic_adaptive_effort": {
+    "none": null,
+    "minimal": "low",
+    "low": "low",
+    "medium": "medium",
+    "high": "high"
+  },
+  "gemini_thinking_budget": {
+    "none": 0,
+    "minimal": 1024,
+    "low": 1024,
+    "medium": 8192,
+    "high": 24576
+  },
+  "gemini_thinking_level": {
+    "none": null,
+    "minimal": "minimal",
+    "low": "low",
+    "medium": "medium",
+    "high": "high"
+  },
+  "openai_reasoning_effort": {
+    "none": "minimal",
+    "minimal": "minimal",
+    "low": "low",
+    "medium": "medium",
+    "high": "high"
+  }
+}
