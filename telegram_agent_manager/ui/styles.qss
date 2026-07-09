@@ -1,0 +1,205 @@
+/* Кастомна тема Telegram Agent Manager.
+   Кольорові токени підставляються з ui/theme.py залежно від темної/світлої теми. */
+
+* {
+    font-family: "Segoe UI", "Inter", "Roboto", sans-serif;
+    font-size: 14px;
+    color: @TEXT@;
+}
+
+QWidget {
+    background-color: @BG@;
+}
+
+QMainWindow, QDialog {
+    background-color: @BG@;
+}
+
+/* Вкладки ------------------------------------------------------------ */
+QTabWidget::pane {
+    border: 1px solid @BORDER@;
+    border-radius: 8px;
+    top: -1px;
+    background: @PANEL@;
+}
+
+QTabBar::tab {
+    background: transparent;
+    color: @TEXT_DIM@;
+    padding: 9px 20px;
+    margin-right: 4px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    font-weight: 600;
+}
+
+QTabBar::tab:selected {
+    background: @PANEL@;
+    color: @ACCENT@;
+    border: 1px solid @BORDER@;
+    border-bottom: none;
+}
+
+QTabBar::tab:hover:!selected {
+    color: @TEXT@;
+}
+
+/* Панелі та картки --------------------------------------------------- */
+#Panel, #Card {
+    background: @PANEL@;
+    border: 1px solid @BORDER@;
+    border-radius: 10px;
+}
+
+QLabel#Title {
+    font-size: 18px;
+    font-weight: 700;
+    color: @TEXT@;
+}
+
+QLabel#Subtle {
+    color: @TEXT_DIM@;
+    font-size: 12px;
+}
+
+/* Кнопки ------------------------------------------------------------- */
+QPushButton {
+    background: @BTN@;
+    color: @TEXT@;
+    border: 1px solid @BORDER@;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 600;
+}
+
+QPushButton:hover {
+    background: @BTN_HOVER@;
+    border-color: @ACCENT@;
+}
+
+QPushButton:pressed {
+    background: @BTN_HOVER@;
+}
+
+QPushButton:disabled {
+    color: @TEXT_DIM@;
+    background: @BTN@;
+    border-color: @BORDER@;
+}
+
+QPushButton#Primary {
+    background: @ACCENT@;
+    color: #ffffff;
+    border: none;
+}
+
+QPushButton#Primary:hover {
+    background: @ACCENT_HOVER@;
+}
+
+QPushButton#Danger {
+    background: transparent;
+    color: @DANGER@;
+    border: 1px solid @DANGER@;
+}
+
+QPushButton#Danger:hover {
+    background: @DANGER@;
+    color: #ffffff;
+}
+
+/* Поля вводу --------------------------------------------------------- */
+QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+    background: @INPUT@;
+    color: @TEXT@;
+    border: 1px solid @BORDER@;
+    border-radius: 8px;
+    padding: 7px 10px;
+    selection-background-color: @ACCENT@;
+}
+
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border-color: @ACCENT@;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+
+QComboBox QAbstractItemView {
+    background: @PANEL@;
+    border: 1px solid @BORDER@;
+    selection-background-color: @ACCENT@;
+    selection-color: #ffffff;
+}
+
+/* Список агентів ----------------------------------------------------- */
+QListWidget {
+    background: @PANEL@;
+    border: 1px solid @BORDER@;
+    border-radius: 10px;
+    padding: 6px;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 10px;
+    border-radius: 8px;
+    margin: 2px 0;
+}
+
+QListWidget::item:selected {
+    background: @SELECT@;
+    color: @TEXT@;
+}
+
+QListWidget::item:hover:!selected {
+    background: @BTN_HOVER@;
+}
+
+/* Дерево / таблиця логів --------------------------------------------- */
+QTextEdit#Logs {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 12px;
+    background: @INPUT@;
+}
+
+/* Чекбокси ----------------------------------------------------------- */
+QCheckBox {
+    spacing: 8px;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1px solid @BORDER@;
+    border-radius: 4px;
+    background: @INPUT@;
+}
+QCheckBox::indicator:checked {
+    background: @ACCENT@;
+    border-color: @ACCENT@;
+}
+
+/* Скролбари ---------------------------------------------------------- */
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical {
+    background: @BORDER@;
+    border-radius: 5px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background: @ACCENT@;
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0;
+}
+
+QLabel#StatusDot {
+    font-size: 14px;
+}

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Дані застосунку / локальне
+config.db
+*.tam
+app.ico
+logs/
