@@ -1,0 +1,17 @@
+# GUI
+PySide6>=6.6,<6.9
+qasync>=0.27
+
+# Telegram
+aiogram>=3.4,<4.0
+aiohttp-socks>=0.8        # підтримка SOCKS5-проксі для Telegram
+
+# Claude
+anthropic>=0.40
+httpx>=0.27              # проксі для Claude API
+
+# Шифрування / зберігання
+cryptography>=42.0
+
+# Пакування в .exe (потрібно лише для збірки)
+pyinstaller>=6.3
